@@ -245,3 +245,75 @@ async fn test_read_stmt(pool: PgPool) -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx::test(migrations = "../postings-db-postgres/migrations")]
+async fn test_create_stmt_no_closed_statement(pool: PgPool) -> anyhow::Result<()> {
+    let _ = env_logger::builder().is_test(true).try_init();
+    dotenvy::dotenv().ok();
+    // Arrange
+    let (ledger_account, _ledger) = setup_test_data(&pool).await?;
+    let service = create_service(pool.clone());
+
+    // Act
+    let result = service.create_stmt(ledger_account.clone(), Utc::now()).await?;
+
+    // Assert
+    let stmt_model = sqlx::query_as::<_, postings_db::models::account_stmt::AccountStmt>("SELECT * FROM account_stmt WHERE id = $1")
+        .bind(result.financial_stmt.id.to_string())
+        .fetch_one(&pool)
+        .await?;
+    
+    assert_eq!(stmt_model.id, result.financial_stmt.id.to_string());
+    assert_eq!(stmt_model.account_id, ledger_account.named.id.to_string());
+    assert_eq!(stmt_model.stmt_status, postings_db::models::stmt_status::StmtStatus::Simulated);
+
+    Ok(())
+}
+
+#[sqlx::test(migrations = "../postings-db-postgres/migrations")]
+async fn test_close_stmt(pool: PgPool) -> anyhow::Result<()> {
+    let _ = env_logger::builder().is_test(true).try_init();
+    dotenvy::dotenv().ok();
+    // Arrange
+    let (ledger_account, _ledger) = setup_test_data(&pool).await?;
+    let service = create_service(pool.clone());
+    let created_stmt = service.create_stmt(ledger_account.clone(), Utc::now()).await?;
+
+    // Act
+    let closed_stmt = service.close_stmt(created_stmt).await?;
+
+    // Assert
+    assert_eq!(closed_stmt.financial_stmt.stmt_status, postings_api::domain::stmt_status::StmtStatus::CLOSED);
+    assert!(closed_stmt.financial_stmt.posting.is_some());
+
+    let stmt_model = sqlx::query_as::<_, postings_db::models::account_stmt::AccountStmt>("SELECT * FROM account_stmt WHERE id = $1")
+        .bind(closed_stmt.financial_stmt.id.to_string())
+        .fetch_one(&pool)
+        .await?;
+    
+    assert_eq!(stmt_model.stmt_status, postings_db::models::stmt_status::StmtStatus::Closed);
+    assert_eq!(stmt_model.posting_id, Some(closed_stmt.financial_stmt.posting.unwrap().id.to_string()));
+
+    Ok(())
+}
+
+fn create_service(pool: PgPool) -> AccountStmtServiceImpl {
+    let coa_repo = Arc::new(PostgresChartOfAccountRepository::new(pool.clone()));
+    let ledger_repo = Arc::new(PostgresLedgerRepository::new(pool.clone()));
+    let ledger_account_repo = Arc::new(PostgresLedgerAccountRepository::new(pool.clone()));
+    let posting_repo = Arc::new(PostgresPostingRepository::new(pool.clone()));
+    let stmt_repo = Arc::new(PostgresAccountStmtRepository::new(pool.clone()));
+    let line_repo = Arc::new(PostgresPostingLineRepository::new(pool.clone()));
+    let trace_repo = Arc::new(PostgresPostingTraceRepository::new(pool.clone()));
+
+    let shared_service = SharedService::new(
+        coa_repo,
+        ledger_repo,
+        ledger_account_repo,
+        posting_repo,
+        stmt_repo,
+        line_repo,
+        trace_repo,
+    );
+    AccountStmtServiceImpl::new(shared_service)
+}

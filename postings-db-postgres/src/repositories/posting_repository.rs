@@ -3,6 +3,7 @@ use sqlx::PgPool;
 use postings_db::repositories::posting_repository::PostingRepository;
 use postings_db::models::posting::Posting;
 use postings_db::DbError;
+use uuid::Uuid;
 
 pub struct PostgresPostingRepository {
     pool: PgPool,
@@ -65,5 +66,23 @@ impl PostingRepository for PostgresPostingRepository {
             .fetch_one(&self.pool)
             .await
             .map_err(DbError::from)
+    }
+
+    async fn find_by_id(&self, id: &str) -> Result<Option<Posting>, DbError> {
+        sqlx::query_as("SELECT * FROM posting WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(DbError::from)
+    }
+
+    async fn save_details(&self, details: &str) -> Result<String, DbError> {
+        let id = Uuid::new_v4().to_string();
+        sqlx::query("INSERT INTO operation_details (id, op_details) VALUES ($1, $2)")
+            .bind(&id)
+            .bind(details)
+            .execute(&self.pool)
+            .await?;
+        Ok(id)
     }
 }

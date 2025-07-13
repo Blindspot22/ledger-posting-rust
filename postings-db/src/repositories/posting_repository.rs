@@ -8,4 +8,6 @@ pub trait PostingRepository {
     async fn find_by_opr_id(&self, opr_id: &str) -> Result<Vec<Posting>, DbError>;
     async fn find_first_by_ledger_order_by_record_time_desc(&self, ledger_id: &str) -> Result<Option<Posting>, DbError>;
     async fn save(&self, posting: Posting) -> Result<Posting, DbError>;
+    async fn find_by_id(&self, id: &str) -> Result<Option<Posting>, DbError>;
+    async fn save_details(&self, details: &str) -> Result<String, DbError>;
 }

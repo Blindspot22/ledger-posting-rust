@@ -49,9 +49,9 @@ impl PostingService for PostingServiceImpl {
         let hash = hash_serialize(&posting).map_err(|_| ServiceError::NotEnoughInfo)?; // Simplified error
         posting.hash_record.hash = Some(hash);
 
-        let opr_details_id = Uuid::new_v4().to_string(); // In real app, save details and get id
-        let _db_posting = PostingMapper::to_model(posting.clone(), opr_details_id);
-        // self.shared.posting_repo.save(db_posting).await.map_err(|_| ServiceError::Db)?;
+        let opr_details_id = self.shared.posting_repo.save_details(&posting.opr_details).await.map_err(|_| ServiceError::Db)?;
+        let db_posting = PostingMapper::to_model(posting.clone(), opr_details_id);
+        self.shared.posting_repo.save(db_posting).await.map_err(|_| ServiceError::Db)?;
         
         Ok(posting)
     }

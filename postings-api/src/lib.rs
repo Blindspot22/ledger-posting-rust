@@ -25,4 +25,8 @@ pub enum ServiceError {
     PostingTimeMissing,
     #[error("No category defined for account")]
     NoCategory,
+    #[error("Statement not found")]
+    StatementNotFound,
+    #[error("Statement is already closed")]
+    StatementAlreadyClosed,
 }

@@ -39,7 +39,21 @@ impl AccountStmtRepository for PostgresAccountStmtRepository {
     }
 
     async fn save(&self, stmt: AccountStmt) -> Result<AccountStmt, DbError> {
-        sqlx::query_as("INSERT INTO account_stmt (id, account_id, youngest_pst_id, total_debit, total_credit, posting_id, pst_time, stmt_status, latest_pst_id, stmt_seq_nbr) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *")
+        sqlx::query_as(
+            "INSERT INTO account_stmt (id, account_id, youngest_pst_id, total_debit, total_credit, posting_id, pst_time, stmt_status, latest_pst_id, stmt_seq_nbr) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) \
+             ON CONFLICT (id) DO UPDATE SET \
+                account_id = EXCLUDED.account_id, \
+                youngest_pst_id = EXCLUDED.youngest_pst_id, \
+                total_debit = EXCLUDED.total_debit, \
+                total_credit = EXCLUDED.total_credit, \
+                posting_id = EXCLUDED.posting_id, \
+                pst_time = EXCLUDED.pst_time, \
+                stmt_status = EXCLUDED.stmt_status, \
+                latest_pst_id = EXCLUDED.latest_pst_id, \
+                stmt_seq_nbr = EXCLUDED.stmt_seq_nbr \
+             RETURNING *"
+        )
             .bind(stmt.id)
             .bind(stmt.account_id)
             .bind(stmt.youngest_pst_id)
@@ -51,6 +65,14 @@ impl AccountStmtRepository for PostgresAccountStmtRepository {
             .bind(stmt.latest_pst_id)
             .bind(stmt.stmt_seq_nbr)
             .fetch_one(&self.pool)
+            .await
+            .map_err(DbError::from)
+    }
+
+    async fn find_by_id(&self, id: &str) -> Result<Option<AccountStmt>, DbError> {
+        sqlx::query_as("SELECT * FROM account_stmt WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&self.pool)
             .await
             .map_err(DbError::from)
     }

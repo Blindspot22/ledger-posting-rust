@@ -31,4 +31,12 @@ impl PostingTraceRepository for PostgresPostingTraceRepository {
             .await
             .map_err(DbError::from)
     }
+
+    async fn find_by_id(&self, id: &str) -> Result<Option<PostingTrace>, DbError> {
+        sqlx::query_as("SELECT * FROM posting_trace WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(DbError::from)
+    }
 }
