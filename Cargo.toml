@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "postings-api",
+    "postings-db",
+    "postings-db-postgres",
+    "postings-db-mariadb",
+    "postings-logic",
+]
+resolver = "2"
