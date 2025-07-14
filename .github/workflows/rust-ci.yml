@@ -2,12 +2,13 @@ name: Rust CI
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ main ]
   pull_request:
-    branches: [ develop ]
+    branches: [ main ]
 
 env:
   CARGO_TERM_COLOR: always
+  DATABASE_URL: postgresql://user:password@localhost:5432/mydb
 
 jobs:
   build:
@@ -15,6 +16,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+
+    - name: Start PostgreSQL
+      run: docker compose up -d postgres
+
+    - name: Wait for PostgreSQL to be ready
+      run: |
+        echo "Waiting for PostgreSQL to start..."
+        until docker compose exec postgres pg_isready -U user -d mydb; do
+          sleep 2
+        done
+        echo "PostgreSQL is ready."
 
     - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
@@ -27,6 +39,10 @@ jobs:
 
     - name: Run tests
       run: cargo test --workspace --verbose
+
+    - name: Stop PostgreSQL
+      if: always()
+      run: docker compose down
 
     - name: Run clippy
       run: cargo clippy --workspace -- -D warnings

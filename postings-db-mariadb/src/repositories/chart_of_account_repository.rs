@@ -35,7 +35,7 @@ impl ChartOfAccountRepository for MariaDbChartOfAccountRepository {
 
     async fn save(&self, coa: ChartOfAccount) -> Result<ChartOfAccount, DbError> {
         sqlx::query("INSERT INTO chart_of_account (id, name, created, user_details, short_desc, long_desc) VALUES (?, ?, ?, ?, ?, ?)")
-            .bind(&coa.id)
+            .bind(coa.id)
             .bind(&coa.name)
             .bind(coa.created)
             .bind(&coa.user_details)

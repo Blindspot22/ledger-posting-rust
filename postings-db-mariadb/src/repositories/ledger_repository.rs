@@ -36,9 +36,9 @@ impl LedgerRepository for MariaDbLedgerRepository {
 
     async fn save(&self, ledger: Ledger) -> Result<Ledger, DbError> {
         sqlx::query("INSERT INTO ledger (id, name, coa_id, created, user_details, short_desc, long_desc) VALUES (?, ?, ?, ?, ?, ?, ?)")
-            .bind(&ledger.id)
+            .bind(ledger.id)
             .bind(&ledger.name)
-            .bind(&ledger.coa_id)
+            .bind(ledger.coa_id)
             .bind(ledger.created)
             .bind(&ledger.user_details)
             .bind(&ledger.short_desc)

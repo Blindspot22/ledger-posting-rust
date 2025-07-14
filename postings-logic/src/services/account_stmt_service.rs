@@ -88,7 +88,7 @@ impl AccountStmtServiceImpl {
             info!("No closed statement found, creating new simulated statement");
             let new_stmt = postings_db::models::account_stmt::AccountStmt {
                 id: Uuid::new_v4(),
-                account_id: account_model.id.clone(),
+                account_id: account_model.id,
                 youngest_pst_id: None,
                 total_debit: BigDecimal::from(0),
                 total_credit: BigDecimal::from(0),
@@ -235,7 +235,7 @@ impl AccountStmtService for AccountStmtServiceImpl {
         let stmt_bo = self.stmt(ledger_account, ref_time).await?;
         let stmt_model = AccountStmtMapper::from_bo(stmt_bo.clone());
         self.shared.stmt_repo.save(stmt_model).await.map_err(|e| {
-            error!("Failed to save statement: {:?}", e);
+            error!("Failed to save statement: {e:?}");
             ServiceError::Db
         })?;
         Ok(stmt_bo)
