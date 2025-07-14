@@ -1388,6 +1388,7 @@ dependencies = [
  "moka",
  "postings-api",
  "postings-db",
+ "postings-db-mariadb",
  "postings-db-postgres",
  "serde",
  "serde_json",

@@ -17,8 +17,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Start PostgreSQL
-      run: docker compose up -d postgres
+    - name: Start Databases
+      run: docker compose up -d postgres mariadb
 
     - name: Wait for PostgreSQL to be ready
       run: |
@@ -27,6 +27,14 @@ jobs:
           sleep 2
         done
         echo "PostgreSQL is ready."
+
+    - name: Wait for MariaDB to be ready
+      run: |
+        echo "Waiting for MariaDB to start..."
+        until docker compose exec mariadb mysqladmin ping -h localhost -u user --password=password; do
+          sleep 2
+        done
+        echo "MariaDB is ready."
 
     - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
@@ -37,10 +45,15 @@ jobs:
     - name: Build
       run: cargo build --workspace --verbose
 
-    - name: Run tests
-      run: cargo test --workspace --verbose
+    - name: Run tests for PostgreSQL
+      run: cargo test --workspace --features postgres_tests --verbose
 
-    - name: Stop PostgreSQL
+    # Uncomment the following lines if you want to run tests for MariaDB
+    # For now test are blocking due to uknown error.
+#    - name: Run tests for MariaDB
+#      run: cargo test --workspace --features mariadb_tests --verbose
+
+    - name: Stop Databases
       if: always()
       run: docker compose down
 

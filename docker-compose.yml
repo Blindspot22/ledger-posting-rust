@@ -15,21 +15,28 @@ services:
     ports:
       - ${POSTGRES_PORT:-5432}:5432
 
-  adminer:
-    image: adminer
+  mariadb:
+    image: mariadb:10.6
     deploy:
       resources:
         limits:
           memory: 512M
-          cpus: "0.5"
-    ports:
-      - ${ADMINER_PORT:-18080}:8080
+          cpus: "1"
     environment:
-      ADMINER_DEFAULT_SERVER: postgres
-      ADMINER_DEFAULT_USERNAME: ${POSTGRES_USER:-user}
-      ADMINER_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      ADMINER_DESIGN: ${ADMINER_DESIGN:-dracula}
-      ADMINER_PLUGINS: ${ADMINER_PLUGINS:-tables-filter tinymce}
+      MARIADB_USER: ${MARIADB_USER:-user}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-password}
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-mydb}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root_password}
+    volumes:
+      - mariadb_db:/var/lib/mysql
+    ports:
+      - ${MARIADB_PORT:-3306}:3306
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${MARIADB_USER:-user}", "--password=${MARIADB_PASSWORD:-password}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   db: {}
+  mariadb_db: {}
