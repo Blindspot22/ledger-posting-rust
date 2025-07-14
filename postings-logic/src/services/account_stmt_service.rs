@@ -58,7 +58,7 @@ impl AccountStmtServiceImpl {
             .shared
             .stmt_repo
             .find_first_by_account_and_status_and_pst_time_less_than_ordered(
-                &account_model.id,
+                account_model.id,
                 StmtStatus::Closed,
                 ref_time,
             )
@@ -74,7 +74,7 @@ impl AccountStmtServiceImpl {
                 .shared
                 .line_repo
                 .find_by_account_and_pst_time_between(
-                    &account_model.id,
+                    account_model.id,
                     last_stmt.pst_time,
                     ref_time,
                 )
@@ -87,7 +87,7 @@ impl AccountStmtServiceImpl {
         } else {
             info!("No closed statement found, creating new simulated statement");
             let new_stmt = postings_db::models::account_stmt::AccountStmt {
-                id: Uuid::new_v4().to_string(),
+                id: Uuid::new_v4(),
                 account_id: account_model.id.clone(),
                 youngest_pst_id: None,
                 total_debit: BigDecimal::from(0),
@@ -101,7 +101,7 @@ impl AccountStmtServiceImpl {
             let lines = self
                 .shared
                 .line_repo
-                .find_by_account_and_pst_time_less_than_equal(&account_model.id, ref_time)
+                .find_by_account_and_pst_time_less_than_equal(account_model.id, ref_time)
                 .await
                 .map_err(|e| {
                     info!("Error finding posting lines for new statement: {e:?}");
@@ -120,7 +120,7 @@ impl AccountStmtServiceImpl {
                 })?;
         }
 
-        let youngest_pst_bo = if let Some(id) = &stmt.youngest_pst_id {
+        let youngest_pst_bo = if let Some(id) = stmt.youngest_pst_id {
             self.shared
                 .trace_repo
                 .find_by_id(id)
@@ -130,7 +130,7 @@ impl AccountStmtServiceImpl {
         } else {
             None
         };
-        let latest_pst_bo = if let Some(id) = &stmt.latest_pst_id {
+        let latest_pst_bo = if let Some(id) = stmt.latest_pst_id {
             self.shared
                 .trace_repo
                 .find_by_id(id)
@@ -140,7 +140,7 @@ impl AccountStmtServiceImpl {
         } else {
             None
         };
-        let posting_bo = if let Some(id) = &stmt.posting_id {
+        let posting_bo = if let Some(id) = stmt.posting_id {
             self.shared
                 .posting_repo
                 .find_by_id(id)
@@ -150,8 +150,7 @@ impl AccountStmtServiceImpl {
                     // This mapping is incomplete as it requires more context (ledger, lines, etc.)
                     // For now, we create a simplified Posting BO, as the full details are not needed for the statement view.
                     let ledger_bo = ledger_account.ledger.clone();
-                    let opr_details = "".to_string(); // Not fetching details for this view
-                    PostingMapper::to_bo(pm, ledger_bo, vec![], opr_details)
+                    PostingMapper::to_bo(pm, ledger_bo, vec![])
                 })
         } else {
             None
@@ -159,7 +158,7 @@ impl AccountStmtServiceImpl {
 
         Ok(AccountStmt {
             financial_stmt: FinancialStmt {
-                id: Uuid::parse_str(&stmt.id).unwrap(),
+                id: stmt.id,
                 posting: posting_bo,
                 pst_time: stmt.pst_time,
                 stmt_status: match stmt.stmt_status {
@@ -186,9 +185,9 @@ impl AccountStmtServiceImpl {
 
         if stmt.youngest_pst_id.is_none() {
             // Simplified logic
-            stmt.youngest_pst_id = Some(trace.id.clone());
+            stmt.youngest_pst_id = Some(trace.id);
         }
-        stmt.latest_pst_id = Some(trace.id.clone());
+        stmt.latest_pst_id = Some(trace.id);
         stmt.total_debit += line.debit_amount.clone();
         stmt.total_credit += line.credit_amount.clone();
 
@@ -205,12 +204,12 @@ impl AccountStmtServiceImpl {
         line: &PostingLine,
     ) -> PostingTrace {
         PostingTrace {
-            id: Uuid::new_v4().to_string(),
-            tgt_pst_id: stmt.id.clone(),
+            id: Uuid::new_v4(),
+            tgt_pst_id: stmt.id,
             src_pst_time: line.pst_time,
-            src_pst_id: line.id.clone(),
+            src_pst_id: line.id,
             src_opr_id: line.opr_id.clone(),
-            account_id: stmt.account_id.clone(),
+            account_id: stmt.account_id,
             debit_amount: line.debit_amount.clone(),
             credit_amount: line.credit_amount.clone(),
             src_pst_hash: line.hash.clone(),
@@ -246,7 +245,7 @@ impl AccountStmtService for AccountStmtServiceImpl {
         let mut stmt_model = self
             .shared
             .stmt_repo
-            .find_by_id(&stmt.financial_stmt.id.to_string())
+            .find_by_id(stmt.financial_stmt.id)
             .await
             .map_err(|_| ServiceError::Db)?
             .ok_or(ServiceError::StatementNotFound)?;
@@ -258,14 +257,14 @@ impl AccountStmtService for AccountStmtServiceImpl {
         let ledger_model = self
             .shared
             .ledger_repo
-            .find_by_id(&stmt.account.ledger.named.id.to_string())
+            .find_by_id(stmt.account.ledger.named.id)
             .await
             .map_err(|_| ServiceError::Db)?
             .unwrap();
         let coa_bo = self
             .shared
             .coa_repo
-            .find_by_id(&ledger_model.coa_id)
+            .find_by_id(ledger_model.coa_id)
             .await
             .map_err(|_| ServiceError::Db)?
             .map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo)
@@ -279,7 +278,7 @@ impl AccountStmtService for AccountStmtServiceImpl {
             opr_id: format!("stmt-close-{}", stmt.financial_stmt.id),
             opr_time: Utc::now(),
             opr_type: "StatementClose".to_string(),
-            opr_details: format!("Closing statement {}", stmt.financial_stmt.id),
+            opr_details: Some(format!("Closing statement {}", stmt.financial_stmt.id)),
             opr_src: Some("AccountStmtService".to_string()),
             pst_time: stmt.financial_stmt.pst_time,
             pst_type: PostingType::BalStmt,
@@ -297,24 +296,18 @@ impl AccountStmtService for AccountStmtServiceImpl {
             .shared
             .posting_repo
             .find_first_by_ledger_order_by_record_time_desc(
-                &closing_posting.ledger.named.id.to_string(),
+                closing_posting.ledger.named.id,
             )
             .await
             .map_err(|_| ServiceError::Db)?;
         if let Some(ant) = antecedent {
-            closing_posting.hash_record.antecedent_id = Some(Uuid::parse_str(&ant.id).unwrap());
+            closing_posting.hash_record.antecedent_id = Some(ant.id);
             closing_posting.hash_record.antecedent_hash = ant.hash;
         }
         let hash = hash_serialize(&closing_posting).map_err(|_| ServiceError::NotEnoughInfo)?;
         closing_posting.hash_record.hash = Some(hash);
 
-        let opr_details_id = self
-            .shared
-            .posting_repo
-            .save_details(&closing_posting.opr_details)
-            .await
-            .map_err(|_| ServiceError::Db)?;
-        let posting_model = PostingMapper::to_model(closing_posting.clone(), opr_details_id);
+        let posting_model = PostingMapper::to_model(closing_posting.clone());
         self.shared
             .posting_repo
             .save(posting_model)
@@ -322,7 +315,7 @@ impl AccountStmtService for AccountStmtServiceImpl {
             .map_err(|_| ServiceError::Db)?;
 
         stmt_model.stmt_status = StmtStatus::Closed;
-        stmt_model.posting_id = Some(closing_posting.id.to_string());
+        stmt_model.posting_id = Some(closing_posting.id);
         self.shared
             .stmt_repo
             .save(stmt_model.clone())

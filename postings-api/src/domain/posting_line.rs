@@ -12,7 +12,7 @@ pub struct PostingLine {
     pub account: LedgerAccount,
     pub debit_amount: BigDecimal,
     pub credit_amount: BigDecimal,
-    pub details: String,
+    pub details: Option<String>,
     pub src_account: Option<String>,
     pub base_line: Option<String>,
     pub sub_opr_src_id: Option<String>,

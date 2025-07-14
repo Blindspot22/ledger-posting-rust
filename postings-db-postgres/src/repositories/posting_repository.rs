@@ -33,7 +33,7 @@ impl PostingRepository for PostgresPostingRepository {
             .map_err(DbError::from)
     }
 
-    async fn find_first_by_ledger_order_by_record_time_desc(&self, ledger_id: &str) -> Result<Option<Posting>, DbError> {
+    async fn find_first_by_ledger_order_by_record_time_desc(&self, ledger_id: Uuid) -> Result<Option<Posting>, DbError> {
         sqlx::query_as("SELECT * FROM posting WHERE ledger_id = $1 ORDER BY record_time DESC LIMIT 1")
             .bind(ledger_id)
             .fetch_optional(&self.pool)
@@ -42,14 +42,14 @@ impl PostingRepository for PostgresPostingRepository {
     }
 
     async fn save(&self, posting: Posting) -> Result<Posting, DbError> {
-        sqlx::query_as("INSERT INTO posting (id, record_user, record_time, opr_id, opr_time, opr_type, opr_details_id, opr_src, pst_time, pst_type, pst_status, ledger_id, val_time, discarded_id, discarded_time, discarding_id, antecedent_id, antecedent_hash, hash, hash_alg) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING *")
+        sqlx::query_as("INSERT INTO posting (id, record_user, record_time, opr_id, opr_time, opr_type, opr_details, opr_src, pst_time, pst_type, pst_status, ledger_id, val_time, discarded_id, discarded_time, discarding_id, antecedent_id, antecedent_hash, hash, hash_alg) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING *")
             .bind(posting.id)
             .bind(posting.record_user)
             .bind(posting.record_time)
             .bind(posting.opr_id)
             .bind(posting.opr_time)
             .bind(posting.opr_type)
-            .bind(posting.opr_details_id)
+            .bind(posting.opr_details)
             .bind(posting.opr_src)
             .bind(posting.pst_time)
             .bind(posting.pst_type)
@@ -68,21 +68,11 @@ impl PostingRepository for PostgresPostingRepository {
             .map_err(DbError::from)
     }
 
-    async fn find_by_id(&self, id: &str) -> Result<Option<Posting>, DbError> {
+    async fn find_by_id(&self, id: Uuid) -> Result<Option<Posting>, DbError> {
         sqlx::query_as("SELECT * FROM posting WHERE id = $1")
             .bind(id)
             .fetch_optional(&self.pool)
             .await
             .map_err(DbError::from)
-    }
-
-    async fn save_details(&self, details: &str) -> Result<String, DbError> {
-        let id = Uuid::new_v4().to_string();
-        sqlx::query("INSERT INTO operation_details (id, op_details) VALUES ($1, $2)")
-            .bind(&id)
-            .bind(details)
-            .execute(&self.pool)
-            .await?;
-        Ok(id)
     }
 }

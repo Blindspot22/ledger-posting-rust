@@ -1,17 +1,16 @@
 use postings_api::domain::posting_line::PostingLine as PostingLineBO;
 use postings_db::models::posting_line::PostingLine as PostingLineModel;
-use uuid::Uuid;
 
 pub struct PostingLineMapper;
 
 impl PostingLineMapper {
-    pub fn to_bo(model: PostingLineModel, account_bo: postings_api::domain::ledger_account::LedgerAccount, details: String) -> PostingLineBO {
+    pub fn to_bo(model: PostingLineModel, account_bo: postings_api::domain::ledger_account::LedgerAccount) -> PostingLineBO {
         PostingLineBO {
-            id: Uuid::parse_str(&model.id).unwrap(),
+            id: model.id,
             account: account_bo,
             debit_amount: model.debit_amount,
             credit_amount: model.credit_amount,
-            details,
+            details : model.details,
             src_account: model.src_account,
             base_line: model.base_line,
             sub_opr_src_id: model.sub_opr_src_id,
@@ -43,13 +42,13 @@ impl PostingLineMapper {
         }
     }
 
-    pub fn from_bo(bo: PostingLineBO, details_id: String) -> PostingLineModel {
+    pub fn from_bo(bo: PostingLineBO) -> PostingLineModel {
         PostingLineModel {
-            id: bo.id.to_string(),
-            account_id: bo.account.named.id.to_string(),
+            id: bo.id,
+            account_id: bo.account.named.id,
             debit_amount: bo.debit_amount,
             credit_amount: bo.credit_amount,
-            details_id,
+            details: bo.details,
             src_account: bo.src_account,
             base_line: bo.base_line,
             sub_opr_src_id: bo.sub_opr_src_id,

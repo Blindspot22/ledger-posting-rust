@@ -15,7 +15,7 @@ pub struct Posting {
     pub opr_id: String,
     pub opr_time: DateTime<Utc>,
     pub opr_type: String,
-    pub opr_details: String,
+    pub opr_details: Option<String>,
     pub opr_src: Option<String>,
     pub pst_time: DateTime<Utc>,
     pub pst_type: PostingType,

@@ -1,8 +1,9 @@
+use uuid::Uuid;
 use sqlx::FromRow;
 
 #[derive(Debug, Clone, FromRow, PartialEq)]
 pub struct ChartOfAccount {
-    pub id: String,
+    pub id: Uuid,
     pub name: String,
     pub created: chrono::DateTime<chrono::Utc>,
     pub user_details: String,

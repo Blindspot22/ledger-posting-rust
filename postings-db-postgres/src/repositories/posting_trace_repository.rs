@@ -3,6 +3,7 @@ use sqlx::PgPool;
 use postings_db::repositories::posting_trace_repository::PostingTraceRepository;
 use postings_db::models::posting_trace::PostingTrace;
 use postings_db::DbError;
+use uuid::Uuid;
 
 pub struct PostgresPostingTraceRepository {
     pool: PgPool,
@@ -32,7 +33,7 @@ impl PostingTraceRepository for PostgresPostingTraceRepository {
             .map_err(DbError::from)
     }
 
-    async fn find_by_id(&self, id: &str) -> Result<Option<PostingTrace>, DbError> {
+    async fn find_by_id(&self, id: Uuid) -> Result<Option<PostingTrace>, DbError> {
         sqlx::query_as("SELECT * FROM posting_trace WHERE id = $1")
             .bind(id)
             .fetch_optional(&self.pool)

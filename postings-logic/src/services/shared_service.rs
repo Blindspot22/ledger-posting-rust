@@ -45,7 +45,7 @@ impl SharedService {
 
     pub async fn load_coa(&self, chart_of_account: &ChartOfAccount) -> Result<postings_db::models::chart_of_account::ChartOfAccount, ServiceError> {
         self.coa_repo
-            .find_by_id(&chart_of_account.named.id.to_string())
+            .find_by_id(chart_of_account.named.id)
             .await
             .map_err(|_| ServiceError::Db)?
             .ok_or(ServiceError::ChartOfAccountNotFound)
@@ -53,7 +53,7 @@ impl SharedService {
     
     pub async fn load_ledger(&self, ledger: &Ledger) -> Result<postings_db::models::ledger::Ledger, ServiceError> {
         self.ledger_repo
-            .find_by_id(&ledger.named.id.to_string())
+            .find_by_id(ledger.named.id)
             .await
             .map_err(|_| ServiceError::Db)?
             .ok_or(ServiceError::LedgerNotFound)
@@ -61,7 +61,7 @@ impl SharedService {
 
     pub async fn load_ledger_account(&self, ledger_account: &LedgerAccount) -> Result<Option<postings_db::models::ledger_account::LedgerAccount>, ServiceError> {
         match self.ledger_account_repo
-            .find_by_id(&ledger_account.named.id.to_string())
+            .find_by_id(ledger_account.named.id)
             .await
         {
             Ok(account) => Ok(Some(account)),

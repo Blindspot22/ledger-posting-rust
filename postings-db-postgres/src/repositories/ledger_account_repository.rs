@@ -15,9 +15,11 @@ impl PostgresLedgerAccountRepository {
     }
 }
 
+use uuid::Uuid;
+
 #[async_trait]
 impl LedgerAccountRepository for PostgresLedgerAccountRepository {
-    async fn find_by_id(&self, id: &str) -> Result<LedgerAccount, DbError> {
+    async fn find_by_id(&self, id: Uuid) -> Result<LedgerAccount, DbError> {
         sqlx::query_as("SELECT * FROM ledger_account WHERE id = $1")
             .bind(id)
             .fetch_one(&self.pool)

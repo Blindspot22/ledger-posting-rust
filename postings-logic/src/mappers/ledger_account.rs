@@ -1,7 +1,6 @@
 use postings_api::domain::ledger_account::LedgerAccount as LedgerAccountBO;
 use postings_db::models::ledger_account::LedgerAccount as LedgerAccountModel;
 use postings_api::domain::named::Named;
-use uuid::Uuid;
 
 pub struct LedgerAccountMapper;
 
@@ -9,7 +8,7 @@ impl LedgerAccountMapper {
     pub fn to_bo(model: LedgerAccountModel, ledger_bo: postings_api::domain::ledger::Ledger, coa_bo: postings_api::domain::chart_of_account::ChartOfAccount, parent_bo: Option<Box<LedgerAccountBO>>) -> LedgerAccountBO {
         LedgerAccountBO {
             named: Named {
-                id: Uuid::parse_str(&model.id).unwrap(),
+                id: model.id,
                 name: model.name,
                 created: model.created,
                 user_details: model.user_details,
@@ -39,11 +38,11 @@ impl LedgerAccountMapper {
 
     pub fn to_model(bo: LedgerAccountBO) -> LedgerAccountModel {
         LedgerAccountModel {
-            id: bo.named.id.to_string(),
+            id: bo.named.id,
             name: bo.named.name,
-            ledger_id: bo.ledger.named.id.to_string(),
-            parent_id: bo.parent.map(|p| p.named.id.to_string()),
-            coa_id: bo.coa.named.id.to_string(),
+            ledger_id: bo.ledger.named.id,
+            parent_id: bo.parent.map(|p| p.named.id),
+            coa_id: bo.coa.named.id,
             balance_side: match bo.balance_side {
                 postings_api::domain::balance_side::BalanceSide::Dr => postings_db::models::balance_side::BalanceSide::Dr,
                 postings_api::domain::balance_side::BalanceSide::Cr => postings_db::models::balance_side::BalanceSide::Cr,

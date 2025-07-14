@@ -32,7 +32,7 @@ impl ChartOfAccountService for ChartOfAccountServiceImpl {
     }
 
     async fn find_chart_of_accounts_by_id(&self, id: Uuid) -> Result<Option<ChartOfAccount>, ServiceError> {
-        let coa_model = self.shared.coa_repo.find_by_id(&id.to_string()).await.map_err(|_| ServiceError::Db)?;
+        let coa_model = self.shared.coa_repo.find_by_id(id).await.map_err(|_| ServiceError::Db)?;
         Ok(coa_model.map(ChartOfAccountMapper::to_bo))
     }
 }

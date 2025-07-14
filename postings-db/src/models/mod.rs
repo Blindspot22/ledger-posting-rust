@@ -10,4 +10,3 @@ pub mod posting_status;
 pub mod posting_trace;
 pub mod posting_type;
 pub mod stmt_status;
-pub mod operation_details;

@@ -1,3 +1,4 @@
+use uuid::Uuid;
 use sqlx::FromRow;
 use bigdecimal::BigDecimal;
 use crate::models::posting_type::PostingType;
@@ -5,11 +6,11 @@ use crate::models::posting_status::PostingStatus;
 
 #[derive(Debug, Clone, FromRow, PartialEq, Default)]
 pub struct PostingLine {
-    pub id: String,
-    pub account_id: String,
+    pub id: Uuid,
+    pub account_id: Uuid,
     pub debit_amount: BigDecimal,
     pub credit_amount: BigDecimal,
-    pub details_id: String,
+    pub details: Option<String>,
     pub src_account: Option<String>,
     pub base_line: Option<String>,
     pub sub_opr_src_id: Option<String>,

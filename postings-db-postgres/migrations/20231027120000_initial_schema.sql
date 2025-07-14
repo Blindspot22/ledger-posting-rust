@@ -1,6 +1,6 @@
 -- Chart of Account
 CREATE TABLE chart_of_account (
-    id VARCHAR(255) PRIMARY KEY,
+    id UUID PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     created TIMESTAMPTZ NOT NULL,
     user_details VARCHAR(255) NOT NULL,
@@ -10,9 +10,9 @@ CREATE TABLE chart_of_account (
 
 -- Ledger
 CREATE TABLE ledger (
-    id VARCHAR(255) PRIMARY KEY,
+    id UUID PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
-    coa_id VARCHAR(255) NOT NULL REFERENCES chart_of_account(id),
+    coa_id UUID NOT NULL REFERENCES chart_of_account(id),
     created TIMESTAMPTZ NOT NULL,
     user_details VARCHAR(255) NOT NULL,
     short_desc VARCHAR(255),
@@ -28,11 +28,11 @@ CREATE TYPE account_category AS ENUM ('RE', 'EX', 'AS', 'LI', 'EQ', 'NOOP', 'NOR
 
 -- Ledger Account
 CREATE TABLE ledger_account (
-    id VARCHAR(255) PRIMARY KEY,
+    id UUID PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    ledger_id VARCHAR(255) NOT NULL REFERENCES ledger(id),
-    parent_id VARCHAR(255) REFERENCES ledger_account(id),
-    coa_id VARCHAR(255) NOT NULL REFERENCES chart_of_account(id),
+    ledger_id UUID NOT NULL REFERENCES ledger(id),
+    parent_id UUID REFERENCES ledger_account(id),
+    coa_id UUID NOT NULL REFERENCES chart_of_account(id),
     balance_side balance_side NOT NULL,
     category account_category NOT NULL,
     created TIMESTAMPTZ NOT NULL,
@@ -48,31 +48,25 @@ CREATE TYPE posting_type AS ENUM ('BUSI_TX', 'ADJ_TX', 'BAL_STMT', 'PNL_STMT', '
 -- PostingStatus Enum
 CREATE TYPE posting_status AS ENUM ('DEFERRED', 'POSTED', 'PROPOSED', 'SIMULATED', 'TAX', 'UNPOSTED', 'CANCELLED', 'OTHER');
 
--- OperationDetails
-CREATE TABLE operation_details (
-    id VARCHAR(255) PRIMARY KEY,
-    op_details TEXT NOT NULL
-);
-
 -- Posting
 CREATE TABLE posting (
-    id VARCHAR(255) PRIMARY KEY,
+    id UUID PRIMARY KEY,
     record_user VARCHAR(255) NOT NULL,
     record_time TIMESTAMPTZ NOT NULL,
     opr_id VARCHAR(255) NOT NULL,
     opr_time TIMESTAMPTZ NOT NULL,
     opr_type VARCHAR(255) NOT NULL,
-    opr_details_id VARCHAR(255) NOT NULL REFERENCES operation_details(id),
+    opr_details TEXT,
     opr_src VARCHAR(255),
     pst_time TIMESTAMPTZ NOT NULL,
     pst_type posting_type NOT NULL,
     pst_status posting_status NOT NULL,
-    ledger_id VARCHAR(255) NOT NULL REFERENCES ledger(id),
+    ledger_id UUID NOT NULL REFERENCES ledger(id),
     val_time TIMESTAMPTZ,
-    discarded_id VARCHAR(255),
+    discarded_id UUID,
     discarded_time TIMESTAMPTZ,
-    discarding_id VARCHAR(255),
-    antecedent_id VARCHAR(255),
+    discarding_id UUID,
+    antecedent_id UUID,
     antecedent_hash VARCHAR(255),
     hash VARCHAR(255),
     hash_alg VARCHAR(255),
@@ -81,11 +75,11 @@ CREATE TABLE posting (
 
 -- Posting Line
 CREATE TABLE posting_line (
-    id VARCHAR(255) PRIMARY KEY,
-    account_id VARCHAR(255) NOT NULL REFERENCES ledger_account(id),
+    id UUID PRIMARY KEY,
+    account_id UUID NOT NULL REFERENCES ledger_account(id),
     debit_amount NUMERIC(19, 2) NOT NULL,
     credit_amount NUMERIC(19, 2) NOT NULL,
-    details_id VARCHAR(255) NOT NULL REFERENCES operation_details(id),
+    details TEXT,
     src_account VARCHAR(255),
     base_line VARCHAR(255),
     sub_opr_src_id VARCHAR(255),
@@ -104,14 +98,14 @@ CREATE TYPE stmt_status AS ENUM ('SIMULATED', 'CLOSED');
 
 -- Account Statement
 CREATE TABLE account_stmt (
-    id VARCHAR(255) PRIMARY KEY,
-    account_id VARCHAR(255) NOT NULL REFERENCES ledger_account(id),
-    youngest_pst_id VARCHAR(255),
+    id UUID PRIMARY KEY,
+    account_id UUID NOT NULL REFERENCES ledger_account(id),
+    youngest_pst_id UUID,
     total_debit NUMERIC(19, 2) NOT NULL,
     total_credit NUMERIC(19, 2) NOT NULL,
-    posting_id VARCHAR(255) REFERENCES posting(id),
+    posting_id UUID REFERENCES posting(id),
     pst_time TIMESTAMPTZ NOT NULL,
     stmt_status stmt_status NOT NULL,
-    latest_pst_id VARCHAR(255),
+    latest_pst_id UUID,
     stmt_seq_nbr INT NOT NULL
 );

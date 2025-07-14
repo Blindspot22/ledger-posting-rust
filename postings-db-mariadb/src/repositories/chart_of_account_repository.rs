@@ -1,3 +1,4 @@
+use uuid::Uuid;
 use async_trait::async_trait;
 use sqlx::MySqlPool;
 use postings_db::repositories::chart_of_account_repository::ChartOfAccountRepository;
@@ -24,9 +25,9 @@ impl ChartOfAccountRepository for MariaDbChartOfAccountRepository {
             .map_err(DbError::from)
     }
 
-    async fn find_by_id(&self, id: &str) -> Result<Option<ChartOfAccount>, DbError> {
+    async fn find_by_id(&self, id: Uuid) -> Result<Option<ChartOfAccount>, DbError> {
         sqlx::query_as("SELECT * FROM chart_of_account WHERE id = ?")
-            .bind(id)
+            .bind(id.to_string())
             .fetch_optional(&self.pool)
             .await
             .map_err(DbError::from)

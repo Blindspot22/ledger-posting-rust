@@ -5,6 +5,7 @@ use postings_db::models::account_stmt::AccountStmt;
 use postings_db::models::stmt_status::StmtStatus;
 use postings_db::DbError;
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 pub struct PostgresAccountStmtRepository {
     pool: PgPool,
@@ -18,7 +19,7 @@ impl PostgresAccountStmtRepository {
 
 #[async_trait]
 impl AccountStmtRepository for PostgresAccountStmtRepository {
-    async fn find_first_by_account_and_status_and_pst_time_less_than_ordered(&self, account_id: &str, status: StmtStatus, ref_time: DateTime<Utc>) -> Result<Option<AccountStmt>, DbError> {
+    async fn find_first_by_account_and_status_and_pst_time_less_than_ordered(&self, account_id: Uuid, status: StmtStatus, ref_time: DateTime<Utc>) -> Result<Option<AccountStmt>, DbError> {
         sqlx::query_as("SELECT * FROM account_stmt WHERE account_id = $1 AND stmt_status = $2 AND pst_time < $3 ORDER BY pst_time DESC, stmt_seq_nbr DESC LIMIT 1")
             .bind(account_id)
             .bind(status)
@@ -28,7 +29,7 @@ impl AccountStmtRepository for PostgresAccountStmtRepository {
             .map_err(DbError::from)
     }
 
-    async fn find_first_by_account_and_status_and_pst_time_greater_than_equal(&self, account_id: &str, status: StmtStatus, ref_time: DateTime<Utc>) -> Result<Option<AccountStmt>, DbError> {
+    async fn find_first_by_account_and_status_and_pst_time_greater_than_equal(&self, account_id: Uuid, status: StmtStatus, ref_time: DateTime<Utc>) -> Result<Option<AccountStmt>, DbError> {
         sqlx::query_as("SELECT * FROM account_stmt WHERE account_id = $1 AND stmt_status = $2 AND pst_time >= $3 LIMIT 1")
             .bind(account_id)
             .bind(status)
@@ -69,7 +70,7 @@ impl AccountStmtRepository for PostgresAccountStmtRepository {
             .map_err(DbError::from)
     }
 
-    async fn find_by_id(&self, id: &str) -> Result<Option<AccountStmt>, DbError> {
+    async fn find_by_id(&self, id: Uuid) -> Result<Option<AccountStmt>, DbError> {
         sqlx::query_as("SELECT * FROM account_stmt WHERE id = $1")
             .bind(id)
             .fetch_optional(&self.pool)

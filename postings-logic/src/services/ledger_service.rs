@@ -29,14 +29,14 @@ impl LedgerService for LedgerServiceImpl {
         let _coa = self.shared.load_coa(&ledger.coa).await?;
         let model = LedgerMapper::to_model(ledger);
         let saved_model = self.shared.ledger_repo.save(model).await.map_err(|_| ServiceError::Db)?;
-        let coa_bo = self.shared.coa_repo.find_by_id(&saved_model.coa_id).await.map_err(|_| ServiceError::Db)?.map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo).unwrap();
+        let coa_bo = self.shared.coa_repo.find_by_id(saved_model.coa_id).await.map_err(|_| ServiceError::Db)?.map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo).ok_or(ServiceError::ChartOfAccountNotFound)?;
         Ok(LedgerMapper::to_bo(saved_model, coa_bo))
     }
 
     async fn find_ledger_by_id(&self, id: Uuid) -> Result<Option<Ledger>, ServiceError> {
-        let ledger_model = self.shared.ledger_repo.find_by_id(&id.to_string()).await.map_err(|_| ServiceError::Db)?;
+        let ledger_model = self.shared.ledger_repo.find_by_id(id).await.map_err(|_| ServiceError::Db)?;
         if let Some(model) = ledger_model {
-            let coa_bo = self.shared.coa_repo.find_by_id(&model.coa_id).await.map_err(|_| ServiceError::Db)?.map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo).unwrap();
+            let coa_bo = self.shared.coa_repo.find_by_id(model.coa_id).await.map_err(|_| ServiceError::Db)?.map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo).ok_or(ServiceError::ChartOfAccountNotFound)?;
             Ok(Some(LedgerMapper::to_bo(model, coa_bo)))
         } else {
             Ok(None)
@@ -46,7 +46,7 @@ impl LedgerService for LedgerServiceImpl {
     async fn find_ledger_by_name(&self, name: &str) -> Result<Option<Ledger>, ServiceError> {
         let ledger_model = self.shared.ledger_repo.find_by_name(name).await.map_err(|_| ServiceError::Db)?;
         if let Some(model) = ledger_model {
-            let coa_bo = self.shared.coa_repo.find_by_id(&model.coa_id).await.map_err(|_| ServiceError::Db)?.map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo).unwrap();
+            let coa_bo = self.shared.coa_repo.find_by_id(model.coa_id).await.map_err(|_| ServiceError::Db)?.map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo).ok_or(ServiceError::ChartOfAccountNotFound)?;
             Ok(Some(LedgerMapper::to_bo(model, coa_bo)))
         } else {
             Ok(None)
@@ -96,10 +96,10 @@ impl LedgerService for LedgerServiceImpl {
         let model = LedgerAccountMapper::to_model(ledger_account);
         let saved_model = self.shared.ledger_account_repo.save(model).await.map_err(|_| ServiceError::Db)?;
         
-        let ledger_bo = self.find_ledger_by_id(Uuid::parse_str(&saved_model.ledger_id).unwrap()).await?.unwrap();
-        let coa_bo = self.shared.coa_repo.find_by_id(&saved_model.coa_id).await.map_err(|_| ServiceError::Db)?.map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo).unwrap();
-        let parent_bo = if let Some(parent_id) = &saved_model.parent_id {
-            Some(Box::new(self.find_ledger_account_by_id(Uuid::parse_str(parent_id).unwrap()).await?))
+        let ledger_bo = self.find_ledger_by_id(saved_model.ledger_id).await?.ok_or(ServiceError::LedgerNotFound)?;
+        let coa_bo = self.shared.coa_repo.find_by_id(saved_model.coa_id).await.map_err(|_| ServiceError::Db)?.map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo).ok_or(ServiceError::ChartOfAccountNotFound)?;
+        let parent_bo = if let Some(parent_id) = saved_model.parent_id {
+            Some(Box::new(self.find_ledger_account_by_id(parent_id).await?))
         } else {
             None
         };
@@ -109,19 +109,19 @@ impl LedgerService for LedgerServiceImpl {
 
     async fn find_ledger_account_by_id(&self, id: Uuid) -> Result<LedgerAccount, ServiceError> {
         let model = self.shared.ledger_account_repo
-            .find_by_id(&id.to_string())
+            .find_by_id(id)
             .await
             .map_err(|_| ServiceError::Db)?;
             
-        let ledger_bo = self.find_ledger_by_id(Uuid::parse_str(&model.ledger_id).unwrap()).await?.unwrap();
+        let ledger_bo = self.find_ledger_by_id(model.ledger_id).await?.ok_or(ServiceError::LedgerNotFound)?;
         let coa_bo = self.shared.coa_repo
-            .find_by_id(&model.coa_id)
+            .find_by_id(model.coa_id)
             .await
             .map_err(|_| ServiceError::Db)?
             .map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo)
-            .unwrap();
-        let parent_bo = if let Some(parent_id) = &model.parent_id {
-            Some(Box::new(self.find_ledger_account_by_id(Uuid::parse_str(parent_id).unwrap()).await?))
+            .ok_or(ServiceError::ChartOfAccountNotFound)?;
+        let parent_bo = if let Some(parent_id) = model.parent_id {
+            Some(Box::new(self.find_ledger_account_by_id(parent_id).await?))
         } else {
             None
         };
@@ -135,10 +135,10 @@ impl LedgerService for LedgerServiceImpl {
             .map_err(|_| ServiceError::Db)?
             .ok_or(ServiceError::LedgerAccountNotFound)?;
             
-        let ledger_bo = self.find_ledger_by_id(Uuid::parse_str(&model.ledger_id).unwrap()).await?.unwrap();
-        let coa_bo = self.shared.coa_repo.find_by_id(&model.coa_id).await.map_err(|_| ServiceError::Db)?.map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo).unwrap();
-        let parent_bo = if let Some(parent_id) = &model.parent_id {
-            Some(Box::new(self.find_ledger_account_by_id(Uuid::parse_str(parent_id).unwrap()).await?))
+        let ledger_bo = self.find_ledger_by_id(model.ledger_id).await?.ok_or(ServiceError::LedgerNotFound)?;
+        let coa_bo = self.shared.coa_repo.find_by_id(model.coa_id).await.map_err(|_| ServiceError::Db)?.map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo).ok_or(ServiceError::ChartOfAccountNotFound)?;
+        let parent_bo = if let Some(parent_id) = model.parent_id {
+            Some(Box::new(self.find_ledger_account_by_id(parent_id).await?))
         } else {
             None
         };
@@ -158,10 +158,10 @@ impl LedgerService for LedgerServiceImpl {
             
         let mut result = HashMap::new();
         for model in models {
-            let ledger_bo = self.find_ledger_by_id(Uuid::parse_str(&model.ledger_id).unwrap()).await?.unwrap();
-            let coa_bo = self.shared.coa_repo.find_by_id(&model.coa_id).await.map_err(|_| ServiceError::Db)?.map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo).unwrap();
-            let parent_bo = if let Some(parent_id) = &model.parent_id {
-                Some(Box::new(self.find_ledger_account_by_id(Uuid::parse_str(parent_id).unwrap()).await?))
+            let ledger_bo = self.find_ledger_by_id(model.ledger_id).await?.ok_or(ServiceError::LedgerNotFound)?;
+            let coa_bo = self.shared.coa_repo.find_by_id(model.coa_id).await.map_err(|_| ServiceError::Db)?.map(crate::mappers::chart_of_account::ChartOfAccountMapper::to_bo).ok_or(ServiceError::ChartOfAccountNotFound)?;
+            let parent_bo = if let Some(parent_id) = model.parent_id {
+                Some(Box::new(self.find_ledger_account_by_id(parent_id).await?))
             } else {
                 None
             };

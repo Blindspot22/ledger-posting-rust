@@ -56,7 +56,7 @@ async fn setup_test_data(pool: &PgPool) -> anyhow::Result<(LedgerAccount, Ledger
         },
     };
     sqlx::query("INSERT INTO chart_of_account (id, name, created, user_details, short_desc, long_desc) VALUES ($1, $2, $3, $4, $5, $6)")
-        .bind(coa.named.id.to_string())
+        .bind(coa.named.id)
         .bind(&coa.named.name)
         .bind(coa.named.created)
         .bind(&coa.named.user_details)
@@ -77,9 +77,9 @@ async fn setup_test_data(pool: &PgPool) -> anyhow::Result<(LedgerAccount, Ledger
         coa: coa.clone(),
     };
     sqlx::query("INSERT INTO ledger (id, name, coa_id, created, user_details, short_desc, long_desc) VALUES ($1, $2, $3, $4, $5, $6, $7)")
-        .bind(ledger.named.id.to_string())
+        .bind(ledger.named.id)
         .bind(&ledger.named.name)
-        .bind(&ledger.coa.named.id.to_string())
+        .bind(ledger.coa.named.id)
         .bind(ledger.named.created)
         .bind(&ledger.named.user_details)
         .bind(&ledger.named.short_desc)
@@ -103,10 +103,10 @@ async fn setup_test_data(pool: &PgPool) -> anyhow::Result<(LedgerAccount, Ledger
         category: AccountCategory::AS,
     };
     sqlx::query("INSERT INTO ledger_account (id, name, ledger_id, coa_id, balance_side, category, created, user_details) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
-        .bind(ledger_account.named.id.to_string())
+        .bind(ledger_account.named.id)
         .bind(&ledger_account.named.name)
-        .bind(&ledger_account.ledger.named.id.to_string())
-        .bind(&ledger_account.coa.named.id.to_string())
+        .bind(ledger_account.ledger.named.id)
+        .bind(ledger_account.coa.named.id)
         .bind(match ledger_account.balance_side {
             BalanceSide::Dr => TestBalanceSide::Dr,
             BalanceSide::Cr => TestBalanceSide::Cr,
@@ -138,26 +138,13 @@ async fn test_read_stmt(pool: PgPool) -> anyhow::Result<()> {
     let (ledger_account, _ledger) = setup_test_data(&pool).await?;
 
     let now = Utc::now();
-    let details_id1 = Uuid::new_v4().to_string();
-    let details_id2 = Uuid::new_v4().to_string();
-
-    sqlx::query("INSERT INTO operation_details (id, op_details) VALUES ($1, $2)")
-        .bind(&details_id1)
-        .bind("{}")
-        .execute(&pool)
-        .await?;
-    sqlx::query("INSERT INTO operation_details (id, op_details) VALUES ($1, $2)")
-        .bind(&details_id2)
-        .bind("{}")
-        .execute(&pool)
-        .await?;
 
     let line1 = PostingLineModel {
-        id: Uuid::new_v4().to_string(),
-        account_id: ledger_account.named.id.to_string(),
+        id: Uuid::new_v4(),
+        account_id: ledger_account.named.id,
         debit_amount: BigDecimal::from(100),
         credit_amount: BigDecimal::from(0),
-        details_id: details_id1,
+        details: Some("{}".to_string()),
         src_account: None,
         base_line: None,
         sub_opr_src_id: None,
@@ -171,11 +158,11 @@ async fn test_read_stmt(pool: PgPool) -> anyhow::Result<()> {
         discarded_time: None,
     };
     let line2 = PostingLineModel {
-        id: Uuid::new_v4().to_string(),
-        account_id: ledger_account.named.id.to_string(),
+        id: Uuid::new_v4(),
+        account_id: ledger_account.named.id,
         debit_amount: BigDecimal::from(50),
         credit_amount: BigDecimal::from(0),
-        details_id: details_id2,
+        details: Some("{}".to_string()),
         src_account: None,
         base_line: None,
         sub_opr_src_id: None,
@@ -188,12 +175,12 @@ async fn test_read_stmt(pool: PgPool) -> anyhow::Result<()> {
         hash: "hash2".to_string(),
         discarded_time: None,
     };
-    sqlx::query("INSERT INTO posting_line (id, account_id, debit_amount, credit_amount, details_id, record_time, opr_id, pst_time, pst_type, pst_status, hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)")
-        .bind(&line1.id)
-        .bind(&line1.account_id)
+    sqlx::query("INSERT INTO posting_line (id, account_id, debit_amount, credit_amount, details, record_time, opr_id, pst_time, pst_type, pst_status, hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)")
+        .bind(line1.id)
+        .bind(line1.account_id)
         .bind(&line1.debit_amount)
         .bind(&line1.credit_amount)
-        .bind(&line1.details_id)
+        .bind(&line1.details)
         .bind(line1.record_time)
         .bind(&line1.opr_id)
         .bind(line1.pst_time)
@@ -202,12 +189,12 @@ async fn test_read_stmt(pool: PgPool) -> anyhow::Result<()> {
         .bind(&line1.hash)
         .execute(&pool)
         .await?;
-    sqlx::query("INSERT INTO posting_line (id, account_id, debit_amount, credit_amount, details_id, record_time, opr_id, pst_time, pst_type, pst_status, hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)")
-        .bind(&line2.id)
-        .bind(&line2.account_id)
+    sqlx::query("INSERT INTO posting_line (id, account_id, debit_amount, credit_amount, details, record_time, opr_id, pst_time, pst_type, pst_status, hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)")
+        .bind(line2.id)
+        .bind(line2.account_id)
         .bind(&line2.debit_amount)
         .bind(&line2.credit_amount)
-        .bind(&line2.details_id)
+        .bind(&line2.details)
         .bind(line2.record_time)
         .bind(&line2.opr_id)
         .bind(line2.pst_time)
@@ -259,12 +246,12 @@ async fn test_create_stmt_no_closed_statement(pool: PgPool) -> anyhow::Result<()
 
     // Assert
     let stmt_model = sqlx::query_as::<_, postings_db::models::account_stmt::AccountStmt>("SELECT * FROM account_stmt WHERE id = $1")
-        .bind(result.financial_stmt.id.to_string())
+        .bind(result.financial_stmt.id)
         .fetch_one(&pool)
         .await?;
     
-    assert_eq!(stmt_model.id, result.financial_stmt.id.to_string());
-    assert_eq!(stmt_model.account_id, ledger_account.named.id.to_string());
+    assert_eq!(stmt_model.id, result.financial_stmt.id);
+    assert_eq!(stmt_model.account_id, ledger_account.named.id);
     assert_eq!(stmt_model.stmt_status, postings_db::models::stmt_status::StmtStatus::Simulated);
 
     Ok(())
@@ -287,12 +274,12 @@ async fn test_close_stmt(pool: PgPool) -> anyhow::Result<()> {
     assert!(closed_stmt.financial_stmt.posting.is_some());
 
     let stmt_model = sqlx::query_as::<_, postings_db::models::account_stmt::AccountStmt>("SELECT * FROM account_stmt WHERE id = $1")
-        .bind(closed_stmt.financial_stmt.id.to_string())
+        .bind(closed_stmt.financial_stmt.id)
         .fetch_one(&pool)
         .await?;
     
     assert_eq!(stmt_model.stmt_status, postings_db::models::stmt_status::StmtStatus::Closed);
-    assert_eq!(stmt_model.posting_id, Some(closed_stmt.financial_stmt.posting.unwrap().id.to_string()));
+    assert_eq!(stmt_model.posting_id, Some(closed_stmt.financial_stmt.posting.unwrap().id));
 
     Ok(())
 }

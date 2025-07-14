@@ -15,11 +15,13 @@ impl MariaDbLedgerAccountRepository {
     }
 }
 
+use uuid::Uuid;
+
 #[async_trait]
 impl LedgerAccountRepository for MariaDbLedgerAccountRepository {
-    async fn find_by_id(&self, id: &str) -> Result<LedgerAccount, DbError> {
+    async fn find_by_id(&self, id: Uuid) -> Result<LedgerAccount, DbError> {
         sqlx::query_as("SELECT * FROM ledger_account WHERE id = ?")
-            .bind(id)
+            .bind(id.to_string())
             .fetch_one(&self.pool)
             .await
             .map_err(DbError::from)

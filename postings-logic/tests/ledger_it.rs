@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use serde::Deserialize;
 use sqlx::{PgPool, Type};
 use postings_logic::services::ledger_service::LedgerServiceImpl;
 use postings_api::service::ledger_service::LedgerService;
@@ -19,22 +18,6 @@ use postings_api::domain::{
     account_category::AccountCategory, balance_side::BalanceSide, ledger_account::LedgerAccount,
 };
 use postings_api::ServiceError;
-
-#[derive(Deserialize)]
-#[allow(dead_code)]
-struct ChartOfAccountSeed {
-    id: String,
-    user_details: String,
-    created: chrono::NaiveDateTime,
-    name: String,
-    short_desc: String,
-}
-
-#[derive(Deserialize)]
-#[allow(dead_code)]
-struct TestDataSet {
-    charts_of_account: Vec<ChartOfAccountSeed>,
-}
 
 #[derive(Type)]
 #[sqlx(type_name = "balance_side")]
@@ -70,7 +53,7 @@ async fn setup_coa(pool: &PgPool) -> anyhow::Result<ChartOfAccount> {
     };
     
     sqlx::query("INSERT INTO chart_of_account (id, name, created, user_details, short_desc, long_desc) VALUES ($1, $2, $3, $4, $5, $6)")
-        .bind(coa.named.id.to_string())
+        .bind(coa.named.id)
         .bind(&coa.named.name)
         .bind(coa.named.created)
         .bind(&coa.named.user_details)
@@ -95,9 +78,9 @@ async fn setup_ledger(pool: &PgPool, coa: &ChartOfAccount) -> anyhow::Result<Led
         coa: coa.clone(),
     };
     sqlx::query("INSERT INTO ledger (id, name, coa_id, created, user_details, short_desc, long_desc) VALUES ($1, $2, $3, $4, $5, $6, $7)")
-        .bind(ledger.named.id.to_string())
+        .bind(ledger.named.id)
         .bind(&ledger.named.name)
-        .bind(&ledger.coa.named.id.to_string())
+        .bind(ledger.coa.named.id)
         .bind(ledger.named.created)
         .bind(&ledger.named.user_details)
         .bind(&ledger.named.short_desc)
@@ -124,11 +107,11 @@ async fn setup_ledger_account(pool: &PgPool, ledger: &Ledger, name: &str, catego
         category,
     };
     sqlx::query("INSERT INTO ledger_account (id, name, ledger_id, parent_id, coa_id, balance_side, category, created, user_details) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
-        .bind(ledger_account.named.id.to_string())
+        .bind(ledger_account.named.id)
         .bind(&ledger_account.named.name)
-        .bind(&ledger_account.ledger.named.id.to_string())
-        .bind(parent.map(|p| p.named.id.to_string()))
-        .bind(&ledger_account.coa.named.id.to_string())
+        .bind(ledger_account.ledger.named.id)
+        .bind(parent.map(|p| p.named.id))
+        .bind(ledger_account.coa.named.id)
         .bind(match ledger_account.balance_side {
             BalanceSide::Dr => TestBalanceSide::Dr,
             BalanceSide::Cr => TestBalanceSide::Cr,
