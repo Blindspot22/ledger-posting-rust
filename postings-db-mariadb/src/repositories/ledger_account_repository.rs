@@ -38,11 +38,11 @@ impl LedgerAccountRepository for MariaDbLedgerAccountRepository {
 
     async fn save(&self, ledger_account: LedgerAccount) -> Result<LedgerAccount, DbError> {
         sqlx::query("INSERT INTO ledger_account (id, name, ledger_id, parent_id, coa_id, balance_side, category, created, user_details, short_desc, long_desc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-            .bind(&ledger_account.id)
+            .bind(ledger_account.id)
             .bind(&ledger_account.name)
-            .bind(&ledger_account.ledger_id)
-            .bind(&ledger_account.parent_id)
-            .bind(&ledger_account.coa_id)
+            .bind(ledger_account.ledger_id)
+            .bind(ledger_account.parent_id)
+            .bind(ledger_account.coa_id)
             .bind(&ledger_account.balance_side)
             .bind(&ledger_account.category)
             .bind(ledger_account.created)
