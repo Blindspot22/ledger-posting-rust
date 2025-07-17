@@ -17,12 +17,12 @@ serde_json = "1.0.111"
 cached = { version = "0.49.2", features = ["async", "proc_macro"] }
 moka = { version = "0.12.1", features = ["future"] }
 sha2 = "0.10.8"
-bigdecimal = { version = "0.3.1", features = ["serde"] }
+bigdecimal = { version = "0.4.3", features = ["serde"] }
 
 [dev-dependencies]
 anyhow = "1.0.79"
 tokio = { version = "1.35.1", features = ["full"] }
-sqlx = { version = "0.7.3", features = ["runtime-tokio-rustls", "macros", "mysql", "postgres", "uuid", "chrono", "bigdecimal"] }
+sqlx = { version = "0.8.1", features = ["runtime-tokio-rustls", "macros", "mysql", "postgres", "uuid", "chrono", "bigdecimal"] }
 serde_yaml = "0.9.27"
 dotenvy = "0.15.7"
 env_logger = "0.10.1"
