@@ -3,7 +3,6 @@ use sqlx::MySqlPool;
 use postings_db::repositories::ledger_account_repository::LedgerAccountRepository;
 use postings_db::models::ledger_account::LedgerAccount;
 use postings_db::DbError;
-use std::collections::HashSet;
 
 pub struct MariaDbLedgerAccountRepository {
     pool: MySqlPool,

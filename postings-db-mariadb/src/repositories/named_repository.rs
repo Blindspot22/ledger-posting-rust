@@ -4,7 +4,7 @@ use uuid::Uuid;
 use postings_db::models::named::{Named as DomainNamed, ContainerType as DomainContainerType};
 use postings_db::repositories::named_repository::NamedRepository;
 use postings_db::DbError;
-use crate::models::named::{Named as MariaDbNamed, ContainerType as MariaDbContainerType};
+use crate::models::named::{Named as MariaDbNamed};
 
 pub struct MariaDbNamedRepository {
     pool: MySqlPool,
@@ -26,10 +26,11 @@ impl MariaDbNamedRepository {
             user_details: maria_named.user_details.try_into().unwrap_or([0u8; 34]),
             short_desc: maria_named.short_desc,
             long_desc: maria_named.long_desc,
-            container_type: match maria_named.container_type {
-                MariaDbContainerType::ChartOfAccount => DomainContainerType::ChartOfAccount,
-                MariaDbContainerType::Ledger => DomainContainerType::Ledger,
-                MariaDbContainerType::LedgerAccount => DomainContainerType::LedgerAccount,
+            container_type: match maria_named.container_type.as_str() {
+                "ChartOfAccount" => DomainContainerType::ChartOfAccount,
+                "Ledger" => DomainContainerType::Ledger,
+                "LedgerAccount" => DomainContainerType::LedgerAccount,
+                _ => panic!("Unknown container type: {}", maria_named.container_type),
             }
         }
     }
@@ -46,18 +47,18 @@ impl MariaDbNamedRepository {
             short_desc: domain_named.short_desc,
             long_desc: domain_named.long_desc,
             container_type: match domain_named.container_type {
-                DomainContainerType::ChartOfAccount => MariaDbContainerType::ChartOfAccount,
-                DomainContainerType::Ledger => MariaDbContainerType::Ledger,
-                DomainContainerType::LedgerAccount => MariaDbContainerType::LedgerAccount,
+                DomainContainerType::ChartOfAccount => "ChartOfAccount".to_string(),
+                DomainContainerType::Ledger => "Ledger".to_string(),
+                DomainContainerType::LedgerAccount => "LedgerAccount".to_string(),
             }
         }
     }
 
-    fn convert_container_type(domain_type: DomainContainerType) -> MariaDbContainerType {
+    fn convert_container_type(domain_type: DomainContainerType) -> String {
         match domain_type {
-            DomainContainerType::ChartOfAccount => MariaDbContainerType::ChartOfAccount,
-            DomainContainerType::Ledger => MariaDbContainerType::Ledger,
-            DomainContainerType::LedgerAccount => MariaDbContainerType::LedgerAccount,
+            DomainContainerType::ChartOfAccount => "ChartOfAccount".to_string(),
+            DomainContainerType::Ledger => "Ledger".to_string(),
+            DomainContainerType::LedgerAccount => "LedgerAccount".to_string(),
         }
     }
 }

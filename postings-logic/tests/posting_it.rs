@@ -255,12 +255,12 @@ mod mariadb_tests {
     use sqlx::MySqlPool;
     use postings_logic::services::posting_service::PostingServiceImpl;
     use postings_api::service::posting_service::PostingService;
+    use postings_api::ServiceError;
     use postings_db_mariadb::repositories::posting_repository::MariaDbPostingRepository;
     use postings_logic::services::shared_service::SharedService;
     use postings_api::domain::posting::Posting;
     use postings_api::domain::ledger::Ledger;
     use postings_api::domain::chart_of_account::ChartOfAccount;
-    use postings_api::domain::named::Named;
     use uuid::Uuid;
     use bigdecimal::BigDecimal;
     use postings_api::domain::posting_line::PostingLine;
@@ -277,27 +277,22 @@ mod mariadb_tests {
     use postings_db::repositories::posting_line_repository::PostingLineRepository;
 
     async fn setup_ledger_account(pool: &MySqlPool, ledger: &Ledger, name: &str, category: AccountCategory, balance_side: BalanceSide, parent: Option<&LedgerAccount>) -> anyhow::Result<LedgerAccount> {
+        let ledger_account_id = Uuid::new_v4();
         let ledger_account = LedgerAccount {
-            named: Named {
-                id: Uuid::new_v4(),
-                name: name.to_string(),
-                created: chrono::Utc::now(),
-                user_details: "test_user".to_string(),
-                short_desc: None,
-                long_desc: None,
-            },
+            id: ledger_account_id,
             ledger: ledger.clone(),
             parent: parent.map(|p| Box::new(p.clone())),
             coa: ledger.coa.clone(),
             balance_side,
             category,
         };
-        sqlx::query("INSERT INTO ledger_account (id, name, ledger_id, parent_id, coa_id, balance_side, category, created, user_details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-            .bind(ledger_account.named.id.to_string())
-            .bind(&ledger_account.named.name)
-            .bind(ledger_account.ledger.named.id.to_string())
-            .bind(parent.map(|p| p.named.id.to_string()))
-            .bind(ledger_account.coa.named.id.to_string())
+        
+        // Insert into simplified ledger_account table
+        sqlx::query("INSERT INTO ledger_account (id, ledger_id, parent_id, coa_id, balance_side, category) VALUES (?, ?, ?, ?, ?, ?)")
+            .bind(ledger_account_id.to_string())
+            .bind(ledger_account.ledger.id.to_string())
+            .bind(parent.map(|p| p.id.to_string()))
+            .bind(ledger_account.coa.id.to_string())
             .bind(match ledger_account.balance_side {
                 BalanceSide::Dr => "Dr",
                 BalanceSide::Cr => "Cr",
@@ -313,8 +308,22 @@ mod mariadb_tests {
                 AccountCategory::NORE => "NORE",
                 AccountCategory::NOEX => "NOEX",
             })
-            .bind(ledger_account.named.created)
-            .bind(&ledger_account.named.user_details)
+            .execute(pool)
+            .await?;
+        
+        // Insert named entity for the ledger account
+        let user_details_bytes = [0u8; 34]; // Create proper 34-byte array
+        sqlx::query("INSERT INTO named (id, container, context, name, language, created, user_details, short_desc, long_desc, container_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(Uuid::new_v4().to_string())
+            .bind(ledger_account_id.to_string())
+            .bind(ledger_account.coa.id.to_string())
+            .bind(name)
+            .bind("en")
+            .bind(chrono::Utc::now())
+            .bind(&user_details_bytes[..])
+            .bind(None::<String>)
+            .bind(None::<String>)
+            .bind("LedgerAccount")
             .execute(pool)
             .await?;
 
@@ -323,47 +332,58 @@ mod mariadb_tests {
 
 
     async fn setup_ledger(pool: &MySqlPool) -> anyhow::Result<Ledger> {
+        let coa_id = Uuid::new_v4();
         let coa = ChartOfAccount {
-            named: Named {
-                id: Uuid::new_v4(),
-                name: "Test COA".to_string(),
-                created: chrono::Utc::now(),
-                user_details: "test_user".to_string(),
-                short_desc: Some("Short desc".to_string()),
-                long_desc: Some("Long desc".to_string()),
-            }
+            id: coa_id,
         };
         
-        sqlx::query("INSERT INTO chart_of_account (id, name, created, user_details, short_desc, long_desc) VALUES (?, ?, ?, ?, ?, ?)")
-            .bind(coa.named.id.to_string())
-            .bind(&coa.named.name)
-            .bind(coa.named.created)
-            .bind(&coa.named.user_details)
-            .bind(&coa.named.short_desc)
-            .bind(&coa.named.long_desc)
+        // Insert into simplified chart_of_account table
+        sqlx::query("INSERT INTO chart_of_account (id) VALUES (?)")
+            .bind(coa_id.to_string())
+            .execute(pool)
+            .await?;
+        
+        // Insert named entity for COA
+        let user_details_bytes = [0u8; 34];
+        sqlx::query("INSERT INTO named (id, container, context, name, language, created, user_details, short_desc, long_desc, container_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(Uuid::new_v4().to_string())
+            .bind(coa_id.to_string())
+            .bind(coa_id.to_string())
+            .bind("Test COA")
+            .bind("en")
+            .bind(chrono::Utc::now())
+            .bind(&user_details_bytes[..])
+            .bind(Some("Short desc"))
+            .bind(Some("Long desc"))
+            .bind("ChartOfAccount")
             .execute(pool)
             .await?;
 
+        let ledger_id = Uuid::new_v4();
         let ledger = Ledger {
-            named: Named {
-                id: Uuid::new_v4(),
-                name: "Test Ledger".to_string(),
-                created: chrono::Utc::now(),
-                user_details: "test_user".to_string(),
-                short_desc: Some("Short desc".to_string()),
-                long_desc: Some("Long desc".to_string()),
-            },
+            id: ledger_id,
             coa,
         };
 
-        sqlx::query("INSERT INTO ledger (id, name, coa_id, created, user_details, short_desc, long_desc) VALUES (?, ?, ?, ?, ?, ?, ?)")
-            .bind(ledger.named.id.to_string())
-            .bind(&ledger.named.name)
-            .bind(ledger.coa.named.id.to_string())
-            .bind(ledger.named.created)
-            .bind(&ledger.named.user_details)
-            .bind(&ledger.named.short_desc)
-            .bind(&ledger.named.long_desc)
+        // Insert into simplified ledger table
+        sqlx::query("INSERT INTO ledger (id, coa_id) VALUES (?, ?)")
+            .bind(ledger_id.to_string())
+            .bind(ledger.coa.id.to_string())
+            .execute(pool)
+            .await?;
+        
+        // Insert named entity for ledger
+        sqlx::query("INSERT INTO named (id, container, context, name, language, created, user_details, short_desc, long_desc, container_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(Uuid::new_v4().to_string())
+            .bind(ledger_id.to_string())
+            .bind(coa_id.to_string())
+            .bind("Test Ledger")
+            .bind("en")
+            .bind(chrono::Utc::now())
+            .bind(&user_details_bytes[..])
+            .bind(Some("Short desc"))
+            .bind(Some("Long desc"))
+            .bind("Ledger")
             .execute(pool)
             .await?;
             
@@ -462,7 +482,7 @@ mod mariadb_tests {
                     pst_time: chrono::Utc::now(),
                     pst_type: postings_api::domain::posting_type::PostingType::BusiTx,
                     pst_status: postings_api::domain::posting_status::PostingStatus::Posted,
-                    hash: Some(b"hash".to_vec()),
+                    hash: Some([1; 34]),
                     additional_information: None,
                     discarded_time: None,
                 },
@@ -481,7 +501,7 @@ mod mariadb_tests {
                     pst_time: chrono::Utc::now(),
                     pst_type: postings_api::domain::posting_type::PostingType::BusiTx,
                     pst_status: postings_api::domain::posting_status::PostingStatus::Posted,
-                    hash: Some(b"hash2".to_vec()),
+                    hash: Some([2; 34]),
                     additional_information: None,
                     discarded_time: None,
                 }
@@ -591,7 +611,7 @@ mod mariadb_tests {
         let line_repo = Arc::new(MariaDbPostingLineRepository::new(pool.clone()));
         let context = create_test_context(pool.clone(), line_repo.clone());
         let posting_bo = create_test_posting(&pool, ledger, 100, 100).await?;
-        let expected_details: Vec<Option<String>> = posting_bo.lines.iter().map(|l| l.details.clone()).collect();
+        let expected_details: Vec<Option<[u8; 34]>> = posting_bo.lines.iter().map(|l| l.details.clone()).collect();
         let line_ids: Vec<Uuid> = posting_bo.lines.iter().map(|l| l.id).collect();
 
         // Act

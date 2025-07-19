@@ -1,42 +1,43 @@
 use uuid::Uuid;
 use sqlx::FromRow;
+use bigdecimal::BigDecimal;
 use postings_db::models::posting_type::PostingType;
 use postings_db::models::posting_status::PostingStatus;
-use postings_db::models::posting::Posting;
+use postings_db::models::posting_line::PostingLine;
 
 #[derive(Debug, Clone, FromRow, PartialEq)]
-pub struct PostingDb {
+pub struct PostingLineDb {
     pub id: String,
-    pub record_user: Vec<u8>,
+    pub account_id: String,
+    pub debit_amount: BigDecimal,
+    pub credit_amount: BigDecimal,
+    pub details: Option<Vec<u8>>,
+    pub src_account: Option<Vec<u8>>,
+    pub base_line: Option<String>,
+    pub sub_opr_src_id: Option<Vec<u8>>,
     pub record_time: chrono::DateTime<chrono::Utc>,
     pub opr_id: Vec<u8>,
-    pub opr_time: chrono::DateTime<chrono::Utc>,
-    pub opr_type: Vec<u8>,
-    pub opr_details: Option<Vec<u8>>,
     pub opr_src: Option<Vec<u8>>,
     pub pst_time: chrono::DateTime<chrono::Utc>,
     pub pst_type: String,
     pub pst_status: String,
-    pub ledger_id: String,
-    pub val_time: Option<chrono::DateTime<chrono::Utc>>,
-    pub discarded_id: Option<String>,
-    pub discarded_time: Option<chrono::DateTime<chrono::Utc>>,
-    pub discarding_id: Option<String>,
-    pub antecedent_id: Option<String>,
-    pub antecedent_hash: Option<Vec<u8>>,
     pub hash: Option<Vec<u8>>,
+    pub discarded_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-impl From<PostingDb> for Posting {
-    fn from(p: PostingDb) -> Self {
+impl From<PostingLineDb> for PostingLine {
+    fn from(p: PostingLineDb) -> Self {
         Self {
             id: Uuid::parse_str(&p.id).unwrap(),
-            record_user: p.record_user.try_into().unwrap_or([0u8; 34]),
+            account_id: Uuid::parse_str(&p.account_id).unwrap(),
+            debit_amount: p.debit_amount,
+            credit_amount: p.credit_amount,
+            details: p.details.map(|v| v.try_into().unwrap_or([0u8; 34])),
+            src_account: p.src_account.map(|v| v.try_into().unwrap_or([0u8; 34])),
+            base_line: p.base_line.map(|s| Uuid::parse_str(&s).unwrap()),
+            sub_opr_src_id: p.sub_opr_src_id.map(|v| v.try_into().unwrap_or([0u8; 34])),
             record_time: p.record_time,
             opr_id: p.opr_id.try_into().unwrap_or([0u8; 34]),
-            opr_time: p.opr_time,
-            opr_type: p.opr_type.try_into().unwrap_or([0u8; 34]),
-            opr_details: p.opr_details.map(|v| v.try_into().unwrap_or([0u8; 34])),
             opr_src: p.opr_src.map(|v| v.try_into().unwrap_or([0u8; 34])),
             pst_time: p.pst_time,
             pst_type: match p.pst_type.as_str() {
@@ -58,28 +59,25 @@ impl From<PostingDb> for Posting {
                 "CANCELLED" => PostingStatus::Cancelled,
                 _ => PostingStatus::Other,
             },
-            ledger_id: Uuid::parse_str(&p.ledger_id).unwrap(),
-            val_time: p.val_time,
-            discarded_id: p.discarded_id.map(|s| Uuid::parse_str(&s).unwrap()),
-            discarded_time: p.discarded_time,
-            discarding_id: p.discarding_id.map(|s| Uuid::parse_str(&s).unwrap()),
-            antecedent_id: p.antecedent_id.map(|s| Uuid::parse_str(&s).unwrap()),
-            antecedent_hash: p.antecedent_hash.map(|v| v.try_into().unwrap_or([0u8; 34])),
             hash: p.hash.map(|v| v.try_into().unwrap_or([0u8; 34])),
+            discarded_time: p.discarded_time,
         }
     }
 }
 
-impl From<Posting> for PostingDb {
-    fn from(p: Posting) -> Self {
+impl From<PostingLine> for PostingLineDb {
+    fn from(p: PostingLine) -> Self {
         Self {
             id: p.id.to_string(),
-            record_user: p.record_user.to_vec(),
+            account_id: p.account_id.to_string(),
+            debit_amount: p.debit_amount,
+            credit_amount: p.credit_amount,
+            details: p.details.map(|v| v.to_vec()),
+            src_account: p.src_account.map(|v| v.to_vec()),
+            base_line: p.base_line.map(|uuid| uuid.to_string()),
+            sub_opr_src_id: p.sub_opr_src_id.map(|v| v.to_vec()),
             record_time: p.record_time,
             opr_id: p.opr_id.to_vec(),
-            opr_time: p.opr_time,
-            opr_type: p.opr_type.to_vec(),
-            opr_details: p.opr_details.map(|v| v.to_vec()),
             opr_src: p.opr_src.map(|v| v.to_vec()),
             pst_time: p.pst_time,
             pst_type: match p.pst_type {
@@ -101,14 +99,8 @@ impl From<Posting> for PostingDb {
                 PostingStatus::Cancelled => "CANCELLED".to_string(),
                 PostingStatus::Other => "OTHER".to_string(),
             },
-            ledger_id: p.ledger_id.to_string(),
-            val_time: p.val_time,
-            discarded_id: p.discarded_id.map(|uuid| uuid.to_string()),
-            discarded_time: p.discarded_time,
-            discarding_id: p.discarding_id.map(|uuid| uuid.to_string()),
-            antecedent_id: p.antecedent_id.map(|uuid| uuid.to_string()),
-            antecedent_hash: p.antecedent_hash.map(|v| v.to_vec()),
             hash: p.hash.map(|v| v.to_vec()),
+            discarded_time: p.discarded_time,
         }
     }
 }

@@ -120,6 +120,7 @@ mod mariadb_tests {
     use serde::Deserialize;
     use sqlx::{MySqlPool, Executor};
     use uuid::Uuid;
+    use hex;
     use postings_logic::services::chart_of_account_service::ChartOfAccountServiceImpl;
     use postings_api::service::chart_of_account_service::ChartOfAccountService;
     use postings_db_mariadb::repositories::chart_of_account_repository::MariaDbChartOfAccountRepository;
@@ -135,28 +136,56 @@ mod mariadb_tests {
     #[derive(Deserialize)]
     struct ChartOfAccountSeed {
         id: Uuid,
-        user_details: String,
-        created: chrono::NaiveDateTime,
+    }
+
+    #[derive(Deserialize)]
+    struct NamedSeed {
+        id: Uuid,
+        container: Uuid,
+        context: Option<Uuid>,
         name: String,
-        short_desc: String,
+        language: String,
+        created: chrono::NaiveDateTime,
+        user_details: String,
+        short_desc: Option<String>,
+        long_desc: Option<String>,
+        container_type: Option<String>,
     }
 
     #[derive(Deserialize)]
     struct TestDataSet {
         charts_of_account: Vec<ChartOfAccountSeed>,
+        named: Vec<NamedSeed>,
     }
 
     async fn setup_data(pool: &MySqlPool, file_path: &str) -> anyhow::Result<()> {
         let yaml_str = std::fs::read_to_string(file_path)?;
         let data_set: TestDataSet = serde_yaml::from_str(&yaml_str)?;
 
+        // Insert chart of accounts (just ID)
         for coa in data_set.charts_of_account {
-            pool.execute(sqlx::query("INSERT INTO chart_of_account (id, user_details, created, name, short_desc) VALUES (?, ?, ?, ?, ?)")
+            pool.execute(sqlx::query("INSERT INTO chart_of_account (id) VALUES (?)")
                 .bind(coa.id.to_string())
-                .bind(coa.user_details)
-                .bind(coa.created)
-                .bind(coa.name)
-                .bind(coa.short_desc)
+            ).await?;
+        }
+
+        // Insert named entities
+        for named in data_set.named {
+            let container_type = named.container_type.unwrap_or("ChartOfAccount".to_string());
+            let context = named.context.unwrap_or(named.container);
+            // Convert hex string to bytes
+            let user_details_bytes = hex::decode(&named.user_details)?;
+            pool.execute(sqlx::query("INSERT INTO named (id, container, context, name, language, created, user_details, short_desc, long_desc, container_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+                .bind(named.id.to_string())
+                .bind(named.container.to_string())
+                .bind(context.to_string())
+                .bind(named.name)
+                .bind(named.language)
+                .bind(named.created)
+                .bind(user_details_bytes)
+                .bind(named.short_desc)
+                .bind(named.long_desc)
+                .bind(container_type)
             ).await?;
         }
         Ok(())

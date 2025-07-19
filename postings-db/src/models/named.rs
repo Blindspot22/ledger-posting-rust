@@ -18,7 +18,7 @@ pub struct Named {
 }
 
 #[derive(Debug, Clone, Type, PartialEq, Eq)]
-#[sqlx(type_name = "balance_side")]
+#[sqlx(type_name = "container_type")]
 pub enum ContainerType {
     ChartOfAccount,
     Ledger,

@@ -8,6 +8,6 @@ named:
     name: "CoA"
     language: "en"
     created: "2018-08-07T20:58:24.232"
-    user_details: "0000000000000000000000000000000000000000000000000000000000000000000000"
+    user_details: "00000000000000000000000000000000000000000000000000000000000000000000"
     short_desc: "Sample chart of account"
     container_type: "ChartOfAccount"
