@@ -6,6 +6,5 @@ use uuid::Uuid;
 #[async_trait]
 pub trait ChartOfAccountRepository {
     async fn find_by_id(&self, id: Uuid) -> Result<Option<ChartOfAccount>, DbError>;
-    async fn find_by_name(&self, name: &str) -> Result<Option<ChartOfAccount>, DbError>;
-    async fn save(&self, coa: ChartOfAccount) -> Result<ChartOfAccount, DbError>;
+    async fn save(&self, coa: &ChartOfAccount) -> Result<(), DbError>;
 }

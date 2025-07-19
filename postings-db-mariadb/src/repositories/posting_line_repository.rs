@@ -49,9 +49,9 @@ impl PostingLineRepository for MariaDbPostingLineRepository {
             .map_err(DbError::from)
     }
     
-    async fn find_by_base_line_and_pst_time_less_than_equal(&self, base_line: &str, ref_time: DateTime<Utc>) -> Result<Vec<PostingLine>, DbError> {
+    async fn find_by_base_line_and_pst_time_less_than_equal(&self, base_line: Uuid, ref_time: DateTime<Utc>) -> Result<Vec<PostingLine>, DbError> {
         sqlx::query_as("SELECT * FROM posting_line WHERE base_line = ? AND pst_time <= ? AND discarded_time IS NULL ORDER BY record_time DESC")
-            .bind(base_line)
+            .bind(base_line.to_string())
             .bind(ref_time)
             .fetch_all(&self.pool)
             .await

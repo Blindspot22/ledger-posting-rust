@@ -25,7 +25,7 @@ impl PostingTraceMapper {
             src_pst_time: bo.src_pst_time,
             src_pst_id: bo.src_pst_id,
             src_opr_id: bo.src_opr_id,
-            account_id: bo.account.named.id,
+            account_id: bo.account.id,
             debit_amount: bo.debit_amount,
             credit_amount: bo.credit_amount,
             src_pst_hash: bo.src_pst_hash,

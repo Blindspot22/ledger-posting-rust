@@ -26,25 +26,12 @@ impl LedgerRepository for MariaDbLedgerRepository {
             .map_err(DbError::from)
     }
 
-    async fn find_by_name(&self, name: &str) -> Result<Option<Ledger>, DbError> {
-        sqlx::query_as("SELECT * FROM ledger WHERE name = ?")
-            .bind(name)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(DbError::from)
-    }
-
-    async fn save(&self, ledger: Ledger) -> Result<Ledger, DbError> {
-        sqlx::query("INSERT INTO ledger (id, name, coa_id, created, user_details, short_desc, long_desc) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    async fn save(&self, ledger: &Ledger) -> Result<(), DbError> {
+        sqlx::query("INSERT INTO ledger (id, coa_id) VALUES (?, ?)")
             .bind(ledger.id)
-            .bind(&ledger.name)
             .bind(ledger.coa_id)
-            .bind(ledger.created)
-            .bind(&ledger.user_details)
-            .bind(&ledger.short_desc)
-            .bind(&ledger.long_desc)
             .execute(&self.pool)
             .await?;
-        Ok(ledger)
+        Ok(())
     }
 }

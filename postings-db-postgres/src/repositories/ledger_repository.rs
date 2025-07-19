@@ -26,25 +26,12 @@ impl LedgerRepository for PostgresLedgerRepository {
             .map_err(DbError::from)
     }
 
-    async fn find_by_name(&self, name: &str) -> Result<Option<Ledger>, DbError> {
-        sqlx::query_as("SELECT * FROM ledger WHERE name = $1")
-            .bind(name)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(DbError::from)
-    }
-
-    async fn save(&self, ledger: Ledger) -> Result<Ledger, DbError> {
-        sqlx::query_as("INSERT INTO ledger (id, name, coa_id, created, user_details, short_desc, long_desc) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *")
+    async fn save(&self, ledger: &Ledger) -> Result<(), DbError> {
+        sqlx::query("INSERT INTO ledger (id, coa_id) VALUES ($1, $2)")
             .bind(ledger.id)
-            .bind(ledger.name)
             .bind(ledger.coa_id)
-            .bind(ledger.created)
-            .bind(ledger.user_details)
-            .bind(ledger.short_desc)
-            .bind(ledger.long_desc)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(DbError::from)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 }

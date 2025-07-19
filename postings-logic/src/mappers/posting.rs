@@ -23,6 +23,7 @@ impl PostingMapper {
                 postings_db::models::posting_type::PostingType::PnlStmt => postings_api::domain::posting_type::PostingType::PnLStmt,
                 postings_db::models::posting_type::PostingType::BsStmt => postings_api::domain::posting_type::PostingType::BsStmt,
                 postings_db::models::posting_type::PostingType::LdgClsng => postings_api::domain::posting_type::PostingType::LdgClsng,
+                postings_db::models::posting_type::PostingType::Unknown => postings_api::domain::posting_type::PostingType::Unknown,
             },
             pst_status: match model.pst_status {
                 postings_db::models::posting_status::PostingStatus::Deferred => postings_api::domain::posting_status::PostingStatus::Deferred,
@@ -44,7 +45,6 @@ impl PostingMapper {
                 antecedent_id: model.antecedent_id,
                 antecedent_hash: model.antecedent_hash,
                 hash: model.hash,
-                hash_alg: model.hash_alg,
             },
         }
     }
@@ -67,6 +67,7 @@ impl PostingMapper {
                 postings_api::domain::posting_type::PostingType::PnLStmt => postings_db::models::posting_type::PostingType::PnlStmt,
                 postings_api::domain::posting_type::PostingType::BsStmt => postings_db::models::posting_type::PostingType::BsStmt,
                 postings_api::domain::posting_type::PostingType::LdgClsng => postings_db::models::posting_type::PostingType::LdgClsng,
+                postings_api::domain::posting_type::PostingType::Unknown => postings_db::models::posting_type::PostingType::Unknown,
             },
             pst_status: match bo.pst_status {
                 postings_api::domain::posting_status::PostingStatus::Deferred => postings_db::models::posting_status::PostingStatus::Deferred,
@@ -78,7 +79,7 @@ impl PostingMapper {
                 postings_api::domain::posting_status::PostingStatus::Cancelled => postings_db::models::posting_status::PostingStatus::Cancelled,
                 postings_api::domain::posting_status::PostingStatus::Other => postings_db::models::posting_status::PostingStatus::Other,
             },
-            ledger_id: bo.ledger.named.id,
+            ledger_id: bo.ledger.id,
             val_time: bo.val_time,
             discarded_id: bo.discarded_id,
             discarded_time: bo.discarded_time,
@@ -86,7 +87,6 @@ impl PostingMapper {
             antecedent_id: bo.hash_record.antecedent_id,
             antecedent_hash: bo.hash_record.antecedent_hash,
             hash: bo.hash_record.hash,
-            hash_alg: bo.hash_record.hash_alg,
         }
     }
 }

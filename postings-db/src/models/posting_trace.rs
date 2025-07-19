@@ -8,9 +8,9 @@ pub struct PostingTrace {
     pub tgt_pst_id: Uuid,
     pub src_pst_time: chrono::DateTime<chrono::Utc>,
     pub src_pst_id: Uuid,
-    pub src_opr_id: String,
+    pub src_opr_id: [u8; 34],
     pub account_id: Uuid,
     pub debit_amount: BigDecimal,
     pub credit_amount: BigDecimal,
-    pub src_pst_hash: String,
+    pub src_pst_hash: Option<[u8; 34]>,
 }
