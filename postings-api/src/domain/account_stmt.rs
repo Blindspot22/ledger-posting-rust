@@ -31,7 +31,6 @@ mod tests {
     use crate::domain::balance_side::BalanceSide;
     use crate::domain::chart_of_account::ChartOfAccount;
     use crate::domain::ledger::Ledger;
-    use crate::domain::named::Named;
     use crate::domain::stmt_status::StmtStatus;
     use bigdecimal::BigDecimal;
     use chrono::Utc;
@@ -40,26 +39,17 @@ mod tests {
 
     fn create_test_account_stmt(total_debit: &str, total_credit: &str) -> AccountStmt {
         let now = Utc::now();
-        let named = Named {
-            id: Uuid::new_v4(),
-            name: "Test".to_string(),
-            created: now,
-            user_details: "test_user".to_string(),
-            short_desc: None,
-            long_desc: None,
-        };
-
         let coa = ChartOfAccount {
-            named: named.clone(),
+            id: Uuid::new_v4(),
         };
 
         let ledger = Ledger {
-            named: named.clone(),
+            id: Uuid::new_v4(),
             coa: coa.clone(),
         };
 
         let ledger_account = LedgerAccount {
-            named: named.clone(),
+            id: Uuid::new_v4(),
             ledger: ledger.clone(),
             parent: None,
             coa: coa.clone(),

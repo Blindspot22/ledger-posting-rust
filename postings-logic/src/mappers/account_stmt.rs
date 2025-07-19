@@ -28,7 +28,7 @@ impl AccountStmtMapper {
     pub fn from_bo(bo: AccountStmtBO) -> AccountStmtModel {
         AccountStmtModel {
             id: bo.financial_stmt.id,
-            account_id: bo.account.named.id,
+            account_id: bo.account.id,
             youngest_pst_id: bo.youngest_pst.map(|p| p.id),
             total_debit: bo.total_debit,
             total_credit: bo.total_credit,

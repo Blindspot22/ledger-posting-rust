@@ -1,6 +1,13 @@
 charts_of_account:
   - id: "11111111-1111-1111-1111-111111111111"
-    user_details: "Francis"
-    created: "2018-08-07T20:58:24.232"
+
+named:
+  - id: "21111111-1111-1111-1111-111111111111"
+    container: "11111111-1111-1111-1111-111111111111"
+    context: "11111111-1111-1111-1111-111111111111"
     name: "CoA"
+    language: "en"
+    created: "2018-08-07T20:58:24.232"
+    user_details: "00000000000000000000000000000000000000000000000000000000000000000000"
     short_desc: "Sample chart of account"
+    container_type: "ChartOfAccount"

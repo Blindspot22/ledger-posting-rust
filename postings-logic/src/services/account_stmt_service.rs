@@ -38,11 +38,11 @@ impl AccountStmtServiceImpl {
     ) -> Result<AccountStmt, ServiceError> {
         info!(
             "Generating statement for account: {} at time: {}",
-            ledger_account.named.id, ref_time
+            ledger_account.id, ref_time
         );
         let account_model = self
             .shared
-            .load_ledger_account(&ledger_account)
+            .load_ledger_account(ledger_account.id)
             .await
             .map_err(|e| {
                 info!("Error loading ledger account: {e:?}");
@@ -208,11 +208,11 @@ impl AccountStmtServiceImpl {
             tgt_pst_id: stmt.id,
             src_pst_time: line.pst_time,
             src_pst_id: line.id,
-            src_opr_id: line.opr_id.clone(),
+            src_opr_id: line.opr_id,
             account_id: stmt.account_id,
             debit_amount: line.debit_amount.clone(),
             credit_amount: line.credit_amount.clone(),
-            src_pst_hash: line.hash.clone(),
+            src_pst_hash: line.hash,
         }
     }
 }
@@ -257,7 +257,7 @@ impl AccountStmtService for AccountStmtServiceImpl {
         let ledger_model = self
             .shared
             .ledger_repo
-            .find_by_id(stmt.account.ledger.named.id)
+            .find_by_id(stmt.account.ledger.id)
             .await
             .map_err(|_| ServiceError::Db)?
             .unwrap();
@@ -273,13 +273,13 @@ impl AccountStmtService for AccountStmtServiceImpl {
 
         let mut closing_posting = postings_api::domain::posting::Posting {
             id: Uuid::new_v4(),
-            record_user: "system".to_string(),
+            record_user: [0; 34],
             record_time: Utc::now(),
-            opr_id: format!("stmt-close-{}", stmt.financial_stmt.id),
+            opr_id: [0; 34],
             opr_time: Utc::now(),
-            opr_type: "StatementClose".to_string(),
-            opr_details: Some(format!("Closing statement {}", stmt.financial_stmt.id)),
-            opr_src: Some("AccountStmtService".to_string()),
+            opr_type: [0; 34],
+            opr_details: None,
+            opr_src: None,
             pst_time: stmt.financial_stmt.pst_time,
             pst_type: PostingType::BalStmt,
             pst_status: PostingStatus::Posted,
@@ -296,7 +296,7 @@ impl AccountStmtService for AccountStmtServiceImpl {
             .shared
             .posting_repo
             .find_first_by_ledger_order_by_record_time_desc(
-                closing_posting.ledger.named.id,
+                closing_posting.ledger.id,
             )
             .await
             .map_err(|_| ServiceError::Db)?;
@@ -310,7 +310,7 @@ impl AccountStmtService for AccountStmtServiceImpl {
         let posting_model = PostingMapper::to_model(closing_posting.clone());
         self.shared
             .posting_repo
-            .save(posting_model)
+            .save(&posting_model)
             .await
             .map_err(|_| ServiceError::Db)?;
 

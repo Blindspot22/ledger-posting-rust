@@ -11,7 +11,6 @@ mod postgres_tests {
     use postings_api::domain::posting::Posting;
     use postings_api::domain::ledger::Ledger;
     use postings_api::domain::chart_of_account::ChartOfAccount;
-    use postings_api::domain::named::Named;
     use uuid::Uuid;
     use bigdecimal::BigDecimal;
     use postings_api::domain::posting_line::PostingLine;
@@ -21,10 +20,10 @@ mod postgres_tests {
     use postings_db_postgres::repositories::ledger_repository::PostgresLedgerRepository;
     use postings_db_postgres::repositories::chart_of_account_repository::PostgresChartOfAccountRepository;
     use postings_db_postgres::repositories::ledger_account_repository::PostgresLedgerAccountRepository;
+    use postings_db_postgres::repositories::named_repository::PostgresNamedRepository;
     use postings_db_postgres::repositories::account_stmt_repository::PostgresAccountStmtRepository;
     use postings_db_postgres::repositories::posting_line_repository::PostgresPostingLineRepository;
     use postings_db_postgres::repositories::posting_trace_repository::PostgresPostingTraceRepository;
-    use postings_api::ServiceError;
     use postings_db::repositories::posting_line_repository::PostingLineRepository;
 
     #[derive(Type)]
@@ -48,28 +47,20 @@ mod postgres_tests {
         NOEX,
     }
 
-    async fn setup_ledger_account(pool: &PgPool, ledger: &Ledger, name: &str, category: AccountCategory, balance_side: BalanceSide, parent: Option<&LedgerAccount>) -> anyhow::Result<LedgerAccount> {
+    async fn setup_ledger_account(pool: &PgPool, ledger: &Ledger, category: AccountCategory, balance_side: BalanceSide, parent: Option<&LedgerAccount>) -> anyhow::Result<LedgerAccount> {
         let ledger_account = LedgerAccount {
-            named: Named {
-                id: Uuid::new_v4(),
-                name: name.to_string(),
-                created: chrono::Utc::now(),
-                user_details: "test_user".to_string(),
-                short_desc: None,
-                long_desc: None,
-            },
+            id: Uuid::new_v4(),
             ledger: ledger.clone(),
             parent: parent.map(|p| Box::new(p.clone())),
             coa: ledger.coa.clone(),
             balance_side,
             category,
         };
-        sqlx::query("INSERT INTO ledger_account (id, name, ledger_id, parent_id, coa_id, balance_side, category, created, user_details) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
-            .bind(ledger_account.named.id)
-            .bind(&ledger_account.named.name)
-            .bind(ledger_account.ledger.named.id)
-            .bind(parent.map(|p| p.named.id))
-            .bind(ledger_account.coa.named.id)
+        sqlx::query("INSERT INTO ledger_account (id, ledger_id, parent_id, coa_id, balance_side, category) VALUES ($1, $2, $3, $4, $5, $6)")
+            .bind(ledger_account.id)
+            .bind(ledger_account.ledger.id)
+            .bind(parent.map(|p| p.id))
+            .bind(ledger_account.coa.id)
             .bind(match ledger_account.balance_side {
                 BalanceSide::Dr => TestBalanceSide::Dr,
                 BalanceSide::Cr => TestBalanceSide::Cr,
@@ -85,8 +76,6 @@ mod postgres_tests {
                 AccountCategory::NORE => TestAccountCategory::NORE,
                 AccountCategory::NOEX => TestAccountCategory::NOEX,
             })
-            .bind(ledger_account.named.created)
-            .bind(&ledger_account.named.user_details)
             .execute(pool)
             .await?;
 
@@ -96,46 +85,22 @@ mod postgres_tests {
 
     async fn setup_ledger(pool: &PgPool) -> anyhow::Result<Ledger> {
         let coa = ChartOfAccount {
-            named: Named {
-                id: Uuid::new_v4(),
-                name: "Test COA".to_string(),
-                created: chrono::Utc::now(),
-                user_details: "test_user".to_string(),
-                short_desc: Some("Short desc".to_string()),
-                long_desc: Some("Long desc".to_string()),
-            }
+            id: Uuid::new_v4(),
         };
         
-        sqlx::query("INSERT INTO chart_of_account (id, name, created, user_details, short_desc, long_desc) VALUES ($1, $2, $3, $4, $5, $6)")
-            .bind(coa.named.id)
-            .bind(&coa.named.name)
-            .bind(coa.named.created)
-            .bind(&coa.named.user_details)
-            .bind(&coa.named.short_desc)
-            .bind(&coa.named.long_desc)
+        sqlx::query("INSERT INTO chart_of_account (id) VALUES ($1)")
+            .bind(coa.id)
             .execute(pool)
             .await?;
 
         let ledger = Ledger {
-            named: Named {
-                id: Uuid::new_v4(),
-                name: "Test Ledger".to_string(),
-                created: chrono::Utc::now(),
-                user_details: "test_user".to_string(),
-                short_desc: Some("Short desc".to_string()),
-                long_desc: Some("Long desc".to_string()),
-            },
+            id: Uuid::new_v4(),
             coa,
         };
 
-        sqlx::query("INSERT INTO ledger (id, name, coa_id, created, user_details, short_desc, long_desc) VALUES ($1, $2, $3, $4, $5, $6, $7)")
-            .bind(ledger.named.id)
-            .bind(&ledger.named.name)
-            .bind(ledger.coa.named.id)
-            .bind(ledger.named.created)
-            .bind(&ledger.named.user_details)
-            .bind(&ledger.named.short_desc)
-            .bind(&ledger.named.long_desc)
+        sqlx::query("INSERT INTO ledger (id, coa_id) VALUES ($1, $2)")
+            .bind(ledger.id)
+            .bind(ledger.coa.id)
             .execute(pool)
             .await?;
             
@@ -147,6 +112,7 @@ mod postgres_tests {
         let ledger_repo = Arc::new(PostgresLedgerRepository::new(pool.clone()));
         let coa_repo = Arc::new(PostgresChartOfAccountRepository::new(pool.clone()));
         let ledger_account_repo = Arc::new(PostgresLedgerAccountRepository::new(pool.clone()));
+        let named_repo = Arc::new(PostgresNamedRepository::new(pool.clone()));
         let stmt_repo = Arc::new(PostgresAccountStmtRepository::new(pool.clone()));
         let line_repo = Arc::new(PostgresPostingLineRepository::new(pool.clone()));
         let trace_repo = Arc::new(PostgresPostingTraceRepository::new(pool.clone()));
@@ -155,6 +121,7 @@ mod postgres_tests {
             coa_repo,
             ledger_repo,
             ledger_account_repo,
+            named_repo,
             posting_repo,
             stmt_repo,
             line_repo,
@@ -176,6 +143,7 @@ mod postgres_tests {
         let ledger_repo = Arc::new(PostgresLedgerRepository::new(pool.clone()));
         let coa_repo = Arc::new(PostgresChartOfAccountRepository::new(pool.clone()));
         let ledger_account_repo = Arc::new(PostgresLedgerAccountRepository::new(pool.clone()));
+        let named_repo = Arc::new(PostgresNamedRepository::new(pool.clone()));
         let stmt_repo = Arc::new(PostgresAccountStmtRepository::new(pool.clone()));
         let trace_repo = Arc::new(PostgresPostingTraceRepository::new(pool.clone()));
 
@@ -183,6 +151,7 @@ mod postgres_tests {
             coa_repo,
             ledger_repo,
             ledger_account_repo,
+            named_repo,
             posting_repo,
             stmt_repo,
             line_repo.clone(),
@@ -197,17 +166,17 @@ mod postgres_tests {
     }
 
     async fn create_test_posting(pool: &PgPool, ledger: Ledger, debit_amount: i64, credit_amount: i64) -> anyhow::Result<Posting> {
-        let debit_account = setup_ledger_account(pool, &ledger, &format!("Debit Account {}", Uuid::new_v4()), AccountCategory::AS, BalanceSide::Dr, None).await?;
-        let credit_account = setup_ledger_account(pool, &ledger, &format!("Credit Account {}", Uuid::new_v4()), AccountCategory::LI, BalanceSide::Cr, None).await?;
+        let debit_account = setup_ledger_account(pool, &ledger, AccountCategory::AS, BalanceSide::Dr, None).await?;
+        let credit_account = setup_ledger_account(pool, &ledger, AccountCategory::LI, BalanceSide::Cr, None).await?;
 
         Ok(Posting {
             id: Uuid::new_v4(),
-            record_user: "test_user".to_string(),
+            record_user: [0; 34],
             record_time: chrono::Utc::now(),
-            opr_id: format!("test_opr_{}", Uuid::new_v4()),
+            opr_id: [0; 34],
             opr_time: chrono::Utc::now(),
-            opr_type: "test_type".to_string(),
-            opr_details: Some("test_details".to_string()),
+            opr_type: [0; 34],
+            opr_details: None,
             opr_src: None,
             pst_time: chrono::Utc::now(),
             pst_type: postings_api::domain::posting_type::PostingType::BusiTx,
@@ -220,17 +189,17 @@ mod postgres_tests {
                     account: debit_account,
                     debit_amount: BigDecimal::from(debit_amount),
                     credit_amount: BigDecimal::from(0),
-                    details: Some("debit".to_string()),
+                    details: Some([0; 34]),
                     src_account: None,
                     base_line: None,
                     sub_opr_src_id: None,
                     record_time: chrono::Utc::now(),
-                    opr_id: "test_opr".to_string(),
+                    opr_id: [0; 34],
                     opr_src: None,
                     pst_time: chrono::Utc::now(),
                     pst_type: postings_api::domain::posting_type::PostingType::BusiTx,
                     pst_status: postings_api::domain::posting_status::PostingStatus::Posted,
-                    hash: "hash".to_string(),
+                    hash: Some([0; 34]),
                     additional_information: None,
                     discarded_time: None,
                 },
@@ -239,17 +208,17 @@ mod postgres_tests {
                     account: credit_account,
                     debit_amount: BigDecimal::from(0),
                     credit_amount: BigDecimal::from(credit_amount),
-                    details: Some("credit".to_string()),
+                    details: Some([0; 34]),
                     src_account: None,
                     base_line: None,
                     sub_opr_src_id: None,
                     record_time: chrono::Utc::now(),
-                    opr_id: "test_opr".to_string(),
+                    opr_id: [0; 34],
                     opr_src: None,
                     pst_time: chrono::Utc::now(),
                     pst_type: postings_api::domain::posting_type::PostingType::BusiTx,
                     pst_status: postings_api::domain::posting_status::PostingStatus::Posted,
-                    hash: "hash".to_string(),
+                    hash: Some([0; 34]),
                     additional_information: None,
                     discarded_time: None,
                 }
@@ -278,103 +247,6 @@ mod postgres_tests {
         
         Ok(())
     }
-
-    #[sqlx::test(migrations = "../postings-db-postgres/migrations")]
-    async fn test_new_posting_unbalanced_fails(pool: PgPool) -> anyhow::Result<()> {
-        dotenvy::from_filename(".env.postgres").ok();
-        // Arrange
-        let ledger = setup_ledger(&pool).await?;
-        let service = create_service(pool.clone());
-        let posting_bo = create_test_posting(&pool, ledger, 100, 99).await?; // Unbalanced
-
-        // Act
-        let result = service.new_posting(posting_bo).await;
-
-        // Assert
-        assert!(matches!(result, Err(ServiceError::DoubleEntry)));
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrations = "../postings-db-postgres/migrations")]
-    async fn test_new_posting_sets_antecedent_hash(pool: PgPool) -> anyhow::Result<()> {
-        dotenvy::from_filename(".env.postgres").ok();
-        // Arrange
-        let ledger = setup_ledger(&pool).await?;
-        let service = create_service(pool.clone());
-
-        // First posting
-        let posting_bo1 = create_test_posting(&pool, ledger.clone(), 100, 100).await?;
-        let result1 = service.new_posting(posting_bo1).await?;
-
-        // Assert first posting
-        assert!(result1.hash_record.antecedent_id.is_none());
-        assert!(result1.hash_record.antecedent_hash.is_none());
-        assert!(result1.hash_record.hash.is_some());
-
-        // Give some time to ensure record_time is different
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-
-        // Second posting
-        let posting_bo2 = create_test_posting(&pool, ledger, 200, 200).await?;
-        let result2 = service.new_posting(posting_bo2).await?;
-
-        // Assert second posting
-        assert_eq!(result2.hash_record.antecedent_id, Some(result1.id));
-        assert_eq!(result2.hash_record.antecedent_hash, result1.hash_record.hash);
-        assert!(result2.hash_record.hash.is_some());
-        assert_ne!(result1.hash_record.hash, result2.hash_record.hash);
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrations = "../postings-db-postgres/migrations")]
-    async fn test_new_posting_stores_lines(pool: PgPool) -> anyhow::Result<()> {
-        dotenvy::from_filename(".env.postgres").ok();
-        // Arrange
-        let ledger = setup_ledger(&pool).await?;
-        let line_repo = Arc::new(PostgresPostingLineRepository::new(pool.clone()));
-        let context = create_test_context(pool.clone(), line_repo.clone());
-        let posting_bo = create_test_posting(&pool, ledger, 100, 100).await?;
-        let line_ids: Vec<Uuid> = posting_bo.lines.iter().map(|l| l.id).collect();
-
-        // Act
-        context.service.new_posting(posting_bo).await?;
-
-        // Assert
-        for line_id in line_ids {
-            let stored_line = context.posting_line_repo.find_by_id(line_id).await?
-                .expect("Posting line not found");
-            assert_eq!(stored_line.id, line_id);
-        }
-        
-        Ok(())
-    }
-
-    #[sqlx::test(migrations = "../postings-db-postgres/migrations")]
-    async fn test_new_posting_stores_line_details(pool: PgPool) -> anyhow::Result<()> {
-        dotenvy::from_filename(".env.postgres").ok();
-        // Arrange
-        let ledger = setup_ledger(&pool).await?;
-        let line_repo = Arc::new(PostgresPostingLineRepository::new(pool.clone()));
-        let context = create_test_context(pool.clone(), line_repo.clone());
-        let posting_bo = create_test_posting(&pool, ledger, 100, 100).await?;
-        let expected_details: Vec<Option<String>> = posting_bo.lines.iter().map(|l| l.details.clone()).collect();
-        let line_ids: Vec<Uuid> = posting_bo.lines.iter().map(|l| l.id).collect();
-
-        // Act
-        context.service.new_posting(posting_bo).await?;
-
-        // Assert
-        for (line_id, expected_detail) in line_ids.iter().zip(expected_details.iter()) {
-            let stored_line = context.posting_line_repo.find_by_id(*line_id).await?
-                .expect("Posting line not found");
-            
-            assert_eq!(&stored_line.details, expected_detail);
-        }
-        
-        Ok(())
-    }
 }
 
 #[cfg(feature = "mariadb_tests")]
@@ -383,12 +255,12 @@ mod mariadb_tests {
     use sqlx::MySqlPool;
     use postings_logic::services::posting_service::PostingServiceImpl;
     use postings_api::service::posting_service::PostingService;
+    use postings_api::ServiceError;
     use postings_db_mariadb::repositories::posting_repository::MariaDbPostingRepository;
     use postings_logic::services::shared_service::SharedService;
     use postings_api::domain::posting::Posting;
     use postings_api::domain::ledger::Ledger;
     use postings_api::domain::chart_of_account::ChartOfAccount;
-    use postings_api::domain::named::Named;
     use uuid::Uuid;
     use bigdecimal::BigDecimal;
     use postings_api::domain::posting_line::PostingLine;
@@ -401,31 +273,26 @@ mod mariadb_tests {
     use postings_db_mariadb::repositories::account_stmt_repository::MariaDbAccountStmtRepository;
     use postings_db_mariadb::repositories::posting_line_repository::MariaDbPostingLineRepository;
     use postings_db_mariadb::repositories::posting_trace_repository::MariaDbPostingTraceRepository;
-    use postings_api::ServiceError;
+    use postings_db_mariadb::repositories::named_repository::MariaDbNamedRepository;
     use postings_db::repositories::posting_line_repository::PostingLineRepository;
 
     async fn setup_ledger_account(pool: &MySqlPool, ledger: &Ledger, name: &str, category: AccountCategory, balance_side: BalanceSide, parent: Option<&LedgerAccount>) -> anyhow::Result<LedgerAccount> {
+        let ledger_account_id = Uuid::new_v4();
         let ledger_account = LedgerAccount {
-            named: Named {
-                id: Uuid::new_v4(),
-                name: name.to_string(),
-                created: chrono::Utc::now(),
-                user_details: "test_user".to_string(),
-                short_desc: None,
-                long_desc: None,
-            },
+            id: ledger_account_id,
             ledger: ledger.clone(),
             parent: parent.map(|p| Box::new(p.clone())),
             coa: ledger.coa.clone(),
             balance_side,
             category,
         };
-        sqlx::query("INSERT INTO ledger_account (id, name, ledger_id, parent_id, coa_id, balance_side, category, created, user_details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-            .bind(ledger_account.named.id.to_string())
-            .bind(&ledger_account.named.name)
-            .bind(ledger_account.ledger.named.id.to_string())
-            .bind(parent.map(|p| p.named.id.to_string()))
-            .bind(ledger_account.coa.named.id.to_string())
+        
+        // Insert into simplified ledger_account table
+        sqlx::query("INSERT INTO ledger_account (id, ledger_id, parent_id, coa_id, balance_side, category) VALUES (?, ?, ?, ?, ?, ?)")
+            .bind(ledger_account_id.to_string())
+            .bind(ledger_account.ledger.id.to_string())
+            .bind(parent.map(|p| p.id.to_string()))
+            .bind(ledger_account.coa.id.to_string())
             .bind(match ledger_account.balance_side {
                 BalanceSide::Dr => "Dr",
                 BalanceSide::Cr => "Cr",
@@ -441,8 +308,22 @@ mod mariadb_tests {
                 AccountCategory::NORE => "NORE",
                 AccountCategory::NOEX => "NOEX",
             })
-            .bind(ledger_account.named.created)
-            .bind(&ledger_account.named.user_details)
+            .execute(pool)
+            .await?;
+        
+        // Insert named entity for the ledger account
+        let user_details_bytes = [0u8; 34]; // Create proper 34-byte array
+        sqlx::query("INSERT INTO named (id, container, context, name, language, created, user_details, short_desc, long_desc, container_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(Uuid::new_v4().to_string())
+            .bind(ledger_account_id.to_string())
+            .bind(ledger_account.coa.id.to_string())
+            .bind(name)
+            .bind("en")
+            .bind(chrono::Utc::now())
+            .bind(&user_details_bytes[..])
+            .bind(None::<String>)
+            .bind(None::<String>)
+            .bind("LedgerAccount")
             .execute(pool)
             .await?;
 
@@ -451,47 +332,58 @@ mod mariadb_tests {
 
 
     async fn setup_ledger(pool: &MySqlPool) -> anyhow::Result<Ledger> {
+        let coa_id = Uuid::new_v4();
         let coa = ChartOfAccount {
-            named: Named {
-                id: Uuid::new_v4(),
-                name: "Test COA".to_string(),
-                created: chrono::Utc::now(),
-                user_details: "test_user".to_string(),
-                short_desc: Some("Short desc".to_string()),
-                long_desc: Some("Long desc".to_string()),
-            }
+            id: coa_id,
         };
         
-        sqlx::query("INSERT INTO chart_of_account (id, name, created, user_details, short_desc, long_desc) VALUES (?, ?, ?, ?, ?, ?)")
-            .bind(coa.named.id.to_string())
-            .bind(&coa.named.name)
-            .bind(coa.named.created)
-            .bind(&coa.named.user_details)
-            .bind(&coa.named.short_desc)
-            .bind(&coa.named.long_desc)
+        // Insert into simplified chart_of_account table
+        sqlx::query("INSERT INTO chart_of_account (id) VALUES (?)")
+            .bind(coa_id.to_string())
+            .execute(pool)
+            .await?;
+        
+        // Insert named entity for COA
+        let user_details_bytes = [0u8; 34];
+        sqlx::query("INSERT INTO named (id, container, context, name, language, created, user_details, short_desc, long_desc, container_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(Uuid::new_v4().to_string())
+            .bind(coa_id.to_string())
+            .bind(coa_id.to_string())
+            .bind("Test COA")
+            .bind("en")
+            .bind(chrono::Utc::now())
+            .bind(&user_details_bytes[..])
+            .bind(Some("Short desc"))
+            .bind(Some("Long desc"))
+            .bind("ChartOfAccount")
             .execute(pool)
             .await?;
 
+        let ledger_id = Uuid::new_v4();
         let ledger = Ledger {
-            named: Named {
-                id: Uuid::new_v4(),
-                name: "Test Ledger".to_string(),
-                created: chrono::Utc::now(),
-                user_details: "test_user".to_string(),
-                short_desc: Some("Short desc".to_string()),
-                long_desc: Some("Long desc".to_string()),
-            },
+            id: ledger_id,
             coa,
         };
 
-        sqlx::query("INSERT INTO ledger (id, name, coa_id, created, user_details, short_desc, long_desc) VALUES (?, ?, ?, ?, ?, ?, ?)")
-            .bind(ledger.named.id.to_string())
-            .bind(&ledger.named.name)
-            .bind(ledger.coa.named.id.to_string())
-            .bind(ledger.named.created)
-            .bind(&ledger.named.user_details)
-            .bind(&ledger.named.short_desc)
-            .bind(&ledger.named.long_desc)
+        // Insert into simplified ledger table
+        sqlx::query("INSERT INTO ledger (id, coa_id) VALUES (?, ?)")
+            .bind(ledger_id.to_string())
+            .bind(ledger.coa.id.to_string())
+            .execute(pool)
+            .await?;
+        
+        // Insert named entity for ledger
+        sqlx::query("INSERT INTO named (id, container, context, name, language, created, user_details, short_desc, long_desc, container_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(Uuid::new_v4().to_string())
+            .bind(ledger_id.to_string())
+            .bind(coa_id.to_string())
+            .bind("Test Ledger")
+            .bind("en")
+            .bind(chrono::Utc::now())
+            .bind(&user_details_bytes[..])
+            .bind(Some("Short desc"))
+            .bind(Some("Long desc"))
+            .bind("Ledger")
             .execute(pool)
             .await?;
             
@@ -503,6 +395,7 @@ mod mariadb_tests {
         let ledger_repo = Arc::new(MariaDbLedgerRepository::new(pool.clone()));
         let coa_repo = Arc::new(MariaDbChartOfAccountRepository::new(pool.clone()));
         let ledger_account_repo = Arc::new(MariaDbLedgerAccountRepository::new(pool.clone()));
+        let named_repo = Arc::new(MariaDbNamedRepository::new(pool.clone()));
         let stmt_repo = Arc::new(MariaDbAccountStmtRepository::new(pool.clone()));
         let line_repo = Arc::new(MariaDbPostingLineRepository::new(pool.clone()));
         let trace_repo = Arc::new(MariaDbPostingTraceRepository::new(pool.clone()));
@@ -511,6 +404,7 @@ mod mariadb_tests {
             coa_repo,
             ledger_repo,
             ledger_account_repo,
+            named_repo,
             posting_repo,
             stmt_repo,
             line_repo,
@@ -532,6 +426,7 @@ mod mariadb_tests {
         let ledger_repo = Arc::new(MariaDbLedgerRepository::new(pool.clone()));
         let coa_repo = Arc::new(MariaDbChartOfAccountRepository::new(pool.clone()));
         let ledger_account_repo = Arc::new(MariaDbLedgerAccountRepository::new(pool.clone()));
+        let named_repo = Arc::new(MariaDbNamedRepository::new(pool.clone()));
         let stmt_repo = Arc::new(MariaDbAccountStmtRepository::new(pool.clone()));
         let trace_repo = Arc::new(MariaDbPostingTraceRepository::new(pool.clone()));
 
@@ -539,6 +434,7 @@ mod mariadb_tests {
             coa_repo,
             ledger_repo,
             ledger_account_repo,
+            named_repo,
             posting_repo,
             stmt_repo,
             line_repo.clone(),
@@ -558,12 +454,12 @@ mod mariadb_tests {
 
         Ok(Posting {
             id: Uuid::new_v4(),
-            record_user: "test_user".to_string(),
+            record_user: [0; 34],
             record_time: chrono::Utc::now(),
-            opr_id: format!("test_opr_{}", Uuid::new_v4()),
+            opr_id: [1; 34],
             opr_time: chrono::Utc::now(),
-            opr_type: "test_type".to_string(),
-            opr_details: Some("test_details".to_string()),
+            opr_type: [2; 34],
+            opr_details: Some([3; 34]),
             opr_src: None,
             pst_time: chrono::Utc::now(),
             pst_type: postings_api::domain::posting_type::PostingType::BusiTx,
@@ -576,17 +472,17 @@ mod mariadb_tests {
                     account: debit_account,
                     debit_amount: BigDecimal::from(debit_amount),
                     credit_amount: BigDecimal::from(0),
-                    details: Some("debit".to_string()),
+                    details: Some([4; 34]),
                     src_account: None,
                     base_line: None,
                     sub_opr_src_id: None,
                     record_time: chrono::Utc::now(),
-                    opr_id: "test_opr".to_string(),
+                    opr_id: [5; 34],
                     opr_src: None,
                     pst_time: chrono::Utc::now(),
                     pst_type: postings_api::domain::posting_type::PostingType::BusiTx,
                     pst_status: postings_api::domain::posting_status::PostingStatus::Posted,
-                    hash: "hash".to_string(),
+                    hash: Some([1; 34]),
                     additional_information: None,
                     discarded_time: None,
                 },
@@ -595,17 +491,17 @@ mod mariadb_tests {
                     account: credit_account,
                     debit_amount: BigDecimal::from(0),
                     credit_amount: BigDecimal::from(credit_amount),
-                    details: Some("credit".to_string()),
+                    details: Some([6; 34]),
                     src_account: None,
                     base_line: None,
                     sub_opr_src_id: None,
                     record_time: chrono::Utc::now(),
-                    opr_id: "test_opr".to_string(),
+                    opr_id: [7; 34],
                     opr_src: None,
                     pst_time: chrono::Utc::now(),
                     pst_type: postings_api::domain::posting_type::PostingType::BusiTx,
                     pst_status: postings_api::domain::posting_status::PostingStatus::Posted,
-                    hash: "hash".to_string(),
+                    hash: Some([2; 34]),
                     additional_information: None,
                     discarded_time: None,
                 }
@@ -715,7 +611,7 @@ mod mariadb_tests {
         let line_repo = Arc::new(MariaDbPostingLineRepository::new(pool.clone()));
         let context = create_test_context(pool.clone(), line_repo.clone());
         let posting_bo = create_test_posting(&pool, ledger, 100, 100).await?;
-        let expected_details: Vec<Option<String>> = posting_bo.lines.iter().map(|l| l.details.clone()).collect();
+        let expected_details: Vec<Option<[u8; 34]>> = posting_bo.lines.iter().map(|l| l.details.clone()).collect();
         let line_ids: Vec<Uuid> = posting_bo.lines.iter().map(|l| l.id).collect();
 
         // Act

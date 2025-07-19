@@ -8,7 +8,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  DATABASE_URL: postgresql://user:password@localhost:5432/mydb
 
 jobs:
   build:
@@ -46,12 +45,14 @@ jobs:
       run: cargo build --workspace --verbose
 
     - name: Run tests for PostgreSQL
+      env:
+        DATABASE_URL: postgresql://user:password@localhost:5432/mydb
       run: cargo test --workspace --features postgres_tests --verbose
 
-    # Uncomment the following lines if you want to run tests for MariaDB
-    # For now test are blocking due to uknown error.
-#    - name: Run tests for MariaDB
-#      run: cargo test --workspace --features mariadb_tests --verbose
+    - name: Run tests for MariaDB
+      env:
+        DATABASE_URL: mysql://user:password@localhost:3306/mydb
+      run: cargo test --workspace --features mariadb_tests --verbose
 
     - name: Stop Databases
       if: always()

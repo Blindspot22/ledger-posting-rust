@@ -11,6 +11,8 @@ pub enum ServiceError {
     NotEnoughInfo,
     #[error("Chart of account not found")]
     ChartOfAccountNotFound,
+    #[error("Chart of account missmatch")]
+    ChartOfAccountMismatch,
     #[error("Ledger account not found")]
     LedgerAccountNotFound,
     #[error("Ledger not found")]

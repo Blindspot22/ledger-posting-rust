@@ -8,4 +8,5 @@ pub enum PostingType {
     PnLStmt,
     BsStmt,
     LdgClsng,
+    Unknown,
 }

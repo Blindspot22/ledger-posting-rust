@@ -68,7 +68,7 @@ impl PostingLineRepository for PostgresPostingLineRepository {
             .map_err(DbError::from)
     }
     
-    async fn find_by_base_line_and_pst_time_less_than_equal(&self, base_line: &str, ref_time: DateTime<Utc>) -> Result<Vec<PostingLine>, DbError> {
+    async fn find_by_base_line_and_pst_time_less_than_equal(&self, base_line: Uuid, ref_time: DateTime<Utc>) -> Result<Vec<PostingLine>, DbError> {
         sqlx::query_as("SELECT * FROM posting_line WHERE base_line = $1 AND pst_time <= $2 AND discarded_time IS NULL ORDER BY record_time DESC")
             .bind(base_line)
             .bind(ref_time)
