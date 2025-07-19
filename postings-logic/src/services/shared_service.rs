@@ -23,6 +23,7 @@ pub struct SharedService {
 }
 
 impl SharedService {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         coa_repo: Arc<dyn ChartOfAccountRepository + Send + Sync>,
         ledger_repo: Arc<dyn LedgerRepository + Send + Sync>,

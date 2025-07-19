@@ -28,7 +28,7 @@ impl From<String> for ContainerType {
             "ChartOfAccount" => ContainerType::ChartOfAccount,
             "Ledger" => ContainerType::Ledger,
             "LedgerAccount" => ContainerType::LedgerAccount,
-            _ => panic!("Unknown container type: {}", s),
+            _ => panic!("Unknown container type: {s}"),
         }
     }
 }

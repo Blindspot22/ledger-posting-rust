@@ -208,11 +208,11 @@ impl AccountStmtServiceImpl {
             tgt_pst_id: stmt.id,
             src_pst_time: line.pst_time,
             src_pst_id: line.id,
-            src_opr_id: line.opr_id.clone(),
+            src_opr_id: line.opr_id,
             account_id: stmt.account_id,
             debit_amount: line.debit_amount.clone(),
             credit_amount: line.credit_amount.clone(),
-            src_pst_hash: line.hash.clone(),
+            src_pst_hash: line.hash,
         }
     }
 }

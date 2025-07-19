@@ -70,7 +70,7 @@ impl NamedRepository for MariaDbNamedRepository {
             .bind(container_id.to_string())
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DbError::from(e))?;
+            .map_err(DbError::from)?;
         
         Ok(results.into_iter().map(Self::to_domain).collect())
     }
@@ -82,7 +82,7 @@ impl NamedRepository for MariaDbNamedRepository {
             .bind(mariadb_type)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DbError::from(e))?;
+            .map_err(DbError::from)?;
         
         Ok(results.into_iter().map(Self::to_domain).collect())
     }
@@ -95,7 +95,7 @@ impl NamedRepository for MariaDbNamedRepository {
             .bind(context.to_string())
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DbError::from(e))?;
+            .map_err(DbError::from)?;
         
         Ok(results.into_iter().map(Self::to_domain).collect())
     }
@@ -128,14 +128,14 @@ impl NamedRepository for MariaDbNamedRepository {
             .bind(maria_named.container_type)
             .execute(&self.pool)
             .await
-            .map_err(|e| DbError::from(e))?;
+            .map_err(DbError::from)?;
             
         // MariaDB does not support RETURNING, so we have to fetch it again
         let result: MariaDbNamed = query_as::<_, MariaDbNamed>("SELECT * FROM named WHERE id = ?")
             .bind(&maria_named.id)
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DbError::from(e))?;
+            .map_err(DbError::from)?;
             
         Ok(Self::to_domain(result))
     }
